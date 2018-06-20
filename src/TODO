@@ -1,8 +1,11 @@
+make gathering take up one state in state machine
+info about entities on hover
+
+------------------------------------------
 npcs require and consume food
+gathering consumes energy
+npcs gather don't gather when they are full on energy(or somewhat full)
 wood changes the gather speed
-
-
-determine when gnomes decide to gather
-
-animate gnomes when gathering
+respawn resources
+take care of null returns from random_move
 

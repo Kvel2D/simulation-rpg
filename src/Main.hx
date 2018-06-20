@@ -17,6 +17,9 @@ class Main {
 	static inline var view_width = 31;
 	static inline var view_height = 31;
 
+	static inline var bananas_count_min = 20;
+	static inline var tree_count_min = 20;
+
 
 	var turn_timer = 0;
 	static inline var turn_timer_max  = 10;
@@ -26,10 +29,6 @@ class Main {
 	var walls = Data.bool_2dvector(map_width, map_height);
 
 	var player: Player;
-
-	var gnome_bananas = 10;
-	var gnome_wood = 10;
-
 
 
 	function new() {
@@ -76,19 +75,27 @@ class Main {
 
 		function random_nearby(x, y): IntVector2 {
 			var move = random_move(x, y);
-			return {
-				x: x + move.x * Random.int(1, 10), 
-				y: y + move.y * Random.int(1, 10)
-			};
+			if (move != null) {
+				return {
+					x: x + move.x * Random.int(1, 10), 
+					y: y + move.y * Random.int(1, 10)
+				};
+			} else {
+				return null;
+			}
 		}
 
 		for (i in 0...10) {
 			var position = random_nearby(110, 110);
-			make_bananas(position.x, position.y);
+			if (position != null) {
+				make_bananas(position.x, position.y);
+			}
 		}
 		for (i in 0...10) {
 			var position = random_nearby(110, 110);
-			make_tree(position.x, position.y);
+			if (position != null) {
+				make_tree(position.x, position.y);
+			}
 		}
 	}
 
@@ -96,7 +103,6 @@ class Main {
 		var gnome = new Gnome();
 		gnome.x = x;
 		gnome.y = y;
-		gnome.tile = Tiles.Gnome;
 		gnome.home_x = x - 10;
 		gnome.home_y = y - 10;
 		gnome.state = NpcState_Idle;
@@ -107,7 +113,6 @@ class Main {
 		bananas.x = x;
 		bananas.y = y;
 		bananas.type = ResourceType_Bananas;
-		bananas.tile = Tiles.Bananas;
 	}
 
 	function make_tree(x, y) {
@@ -115,259 +120,103 @@ class Main {
 		tree.x = x;
 		tree.y = y;
 		tree.type = ResourceType_Tree;
-		tree.tile = Tiles.Tree;
 	}
 
 
-	function get_free_map(): Vector<Vector<Bool>> {
-		var free_map = Data.bool_2dvector(map_width, map_height, true);
-		// Gnomes
-		for (gnome in Entity.get(Gnome)) {
-			if (gnome.moved) {
-				free_map[gnome.x + gnome.dx][gnome.y + gnome.dy] = false;
-			} else {
-				free_map[gnome.x][gnome.y] = false;
-			}
-		}
-		// Walls
-		for (x in 0...map_width) {
-			for (y in 0...map_height) {
-				if (walls[x][y]) {
-					free_map[x][y] = false;
+	function screen_x(x) {
+		return x - player.x + Math.floor(view_width / 2);
+	}
+
+	function screen_y(y) {
+		return y - player.y + Math.floor(view_height / 2);
+	}
+
+	function out_of_bounds(x, y) {
+		return x < 0 || y < 0 || x >= map_width || y >= map_height;
+	}
+
+	function draw_entity(entity, tile) {
+		Gfx.draw_tile(screen_x(entity.x) * tilesize, screen_y(entity.y) * tilesize,
+			tile); 
+	}
+
+	function render() {
+		var start_x = player.x - Math.floor(view_width / 2);
+		var end_x = player.x + Math.ceil(view_width / 2);
+		var start_y = player.y - Math.floor(view_height / 2);
+		var end_y = player.y + Math.ceil(view_height / 2);
+
+		for (x in start_x...end_x) {
+			for (y in start_y...end_y) {
+				if (!out_of_bounds(x, y)) {
+					Gfx.draw_tile(screen_x(x) * tilesize, screen_y(y) * tilesize, 
+						tiles[x][y]);
 				}
 			}
 		}
-		// TODO: Add player collision here
-		// free_map[player.x][player.y] = false;
 
-		return free_map;
-	}
-
-
-	var time: Float = 0;
-	var current_block_name = "NONE";
-	function time_block(next_block_name: String) {
-		var temp = Timer.stamp();
-		trace('Block \"$current_block_name\" took ${(temp - time) * 1000} ms.');
-		time = temp;
-		current_block_name = next_block_name;
-	}
-
-	function a_star(x1: Int, y1: Int, x2: Int, y2: Int): Array<IntVector2> {
-		function heuristic_score(x1: Int, y1: Int, x2: Int, y2: Int): Int {
-			return Std.int(Math.abs(x2 - x1) + Math.abs(y2 - y1));
-		}
-
-		function path(prev: Vector<Vector<IntVector2>>, x: Int, y: Int): Array<IntVector2> {
-			var current = {x: x, y: y};
-			var temp = {x: x, y: y};
-			var path: Array<IntVector2> = [{x: current.x, y: current.y}];
-			while (prev[current.x][current.y].x != -1) {
-				temp.x = current.x;
-				temp.y = current.y;
-				current.x = prev[temp.x][temp.y].x;
-				current.y = prev[temp.x][temp.y].y;
-				path.push({x: current.x, y: current.y});
+		for (gnome in Entity.get(Gnome)) {
+			if (gnome.state == NpcState_Dead) {
+				draw_entity(gnome, Tiles.GnomeDead);
+			} else {
+				draw_entity(gnome, Tiles.Gnome);
 			}
-			return path;
 		}
 
-		time_block("Reset");
+		for (resource in Entity.get(Resource)) {
+			switch (resource.type) {
+				case ResourceType_Bananas: draw_entity(resource, Tiles.Bananas);
+				case ResourceType_Tree: draw_entity(resource, Tiles.Tree);
+				default:
+			}
+		}
 
-		time_block("get_free_map");
+		draw_entity(player, Tiles.Player);
+	}
 
-		var move_map: Vector<Vector<Bool>>;
-		move_map = get_free_map();
-        move_map[x2][y2] = true; // destination cell needs to be "free" for the algorithm to find paths correctly
+	var random_move_possible: Array<IntVector2> = [{x: 1, y: 0}, {x: -1, y: 0}, {x: 0, y: 1}, {x: 0, y: -1},
+	{x: 1, y: 1}, {x: -1, y: 1}, {x: -1, y: -1}, {x: 1, y: -1}];
+	function random_move(x, y): IntVector2 {
+		var moves = Random.shuffle(random_move_possible);
 
+		while (moves.length > 0 && walls[x + moves[0].x][y + moves[0].y]) {
+			moves.shift();
+		}
 
-        time_block("closed open init");
+		if (moves.length > 0) {
+			return moves[0];
+		} else {
+			return null;
+		}
+	}
 
-        var infinity = 10000000;
-        var closed = Data.bool_2dvector(map_width, map_height, false);
-        var open = Data.bool_2dvector(map_width, map_height, false);
-        open[x1][y1] = true;
-        var open_length = 1;
-        var prev = new Vector<Vector<IntVector2>>(map_width);
-        for (x in 0...map_width) {
-        	prev[x] = new Vector<IntVector2>(map_height);
-        	for (y in 0...map_height) {
-        		prev[x][y] = {x: -1, y: -1};
-        	}
-        }
+	function random_neighbor_space(x, y): IntVector2 {
+		var move = random_move(x, y);
+		if (move != null) {
+			return {x: x + move.x, y: y + move.y} 
+		} else {
+			return null;
+		}
+	}
 
+	function get_move_to(x1, y1, x2, y2): IntVector2 {
+		return {x: Math.sign(x2 - x1), y: Math.sign(y2 - y1)};
+	}
 
-        time_block("scores");
+	function move_entity_to(entity, x, y): Bool {
+		var move = get_move_to(entity.x, entity.y, x, y);
+		if (move.x != 0 || move.y != 0) {
+			entity.dx = move.x;
+			entity.dy = move.y;
+			entity.moved = true;
 
-        var g_score = Data.int_2dvector(map_width, map_height, infinity);
-        g_score[x1][y1] = 0;
-        var f_score = Data.int_2dvector(map_width, map_height, infinity);
+			return true;
+		} else {
+			return false;
+		}
+	}
 
-        f_score[x1][y1] = heuristic_score(x1, y1, x2, y2);
-
-        time_block("rest");
-
-        while (open_length != 0) {
-        	var current = function() {
-        		var lowest_score = infinity;
-        		var lowest_node = {x: x1, y: y1};
-        		for (x in 0...map_width) {
-        			for (y in 0...map_height) {
-        				if (open[x][y] && f_score[x][y] <= lowest_score) {
-        					lowest_node.x = x;
-        					lowest_node.y = y;
-        					lowest_score = f_score[x][y];
-        				}
-        			}
-        		}
-        		return lowest_node;
-        	}();
-
-        	if (current.x == x2 && current.y == y2) {
-        		return path(prev, current.x, current.y);
-        	}
-
-        	open[current.x][current.y] = false;
-        	open_length--;
-        	closed[current.x][current.y] = true;
-        	for (dx in -1...2) {
-        		for (dy in -1...2) {
-        			if (Math.abs(dx) + Math.abs(dy) != 1) {
-        				continue;
-        			}
-        			var neighbor_x = Std.int(current.x + dx);
-        			var neighbor_y = Std.int(current.y + dy);
-        			if (out_of_bounds(neighbor_x, neighbor_y) || !move_map[neighbor_x][neighbor_y]) {
-        				continue;
-        			}
-
-        			if (closed[neighbor_x][neighbor_y]) {
-        				continue;
-        			}
-        			var tentative_g_score = g_score[current.x][current.y] + 1;
-        			if (!open[neighbor_x][neighbor_y]) {
-        				open[neighbor_x][neighbor_y] = true;
-        				open_length++;
-        			} else if (tentative_g_score >= g_score[neighbor_x][neighbor_y]) {
-        				continue;
-        			}
-
-        			prev[neighbor_x][neighbor_y].x = current.x;
-        			prev[neighbor_x][neighbor_y].y = current.y;
-        			g_score[neighbor_x][neighbor_y] = tentative_g_score;
-        			f_score[neighbor_x][neighbor_y] = g_score[neighbor_x][neighbor_y] + heuristic_score(neighbor_x, neighbor_y, x2, y2);
-        		}
-        	}
-        }
-
-        
-        time_block("END");
-
-
-        return new Array<IntVector2>();
-    }
-
-
-
-
-
-    function screen_x(x) {
-    	return x - player.x + Math.floor(view_width / 2);
-    }
-
-    function screen_y(y) {
-    	return y - player.y + Math.floor(view_height / 2);
-    }
-
-    function out_of_bounds(x, y) {
-    	return x < 0 || y < 0 || x >= map_width || y >= map_height;
-    }
-
-    function draw_entity(entity) {
-    	Gfx.draw_tile(screen_x(entity.x) * tilesize, screen_y(entity.y) * tilesize,
-    		entity.tile); 
-    }
-
-    function render() {
-    	var start_x = player.x - Math.floor(view_width / 2);
-    	var end_x = player.x + Math.ceil(view_width / 2);
-    	var start_y = player.y - Math.floor(view_height / 2);
-    	var end_y = player.y + Math.ceil(view_height / 2);
-
-    	for (x in start_x...end_x) {
-    		for (y in start_y...end_y) {
-    			if (!out_of_bounds(x, y)) {
-    				Gfx.draw_tile(screen_x(x) * tilesize, screen_y(y) * tilesize, 
-    					tiles[x][y]);
-    			}
-    		}
-    	}
-
-    	for (gnome in Entity.get(Gnome)) {
-    		draw_entity(gnome);
-    	}
-
-    	for (resource in Entity.get(Resource)) {
-    		draw_entity(resource);
-    	}
-
-    	draw_entity(player);
-    }
-
-
-    function update_result() {
-    	function update_moving_entity(entity) {
-    		entity.x += entity.dx;
-    		entity.y += entity.dy;
-    		entity.dx = 0;
-    		entity.dy = 0;
-    		entity.moved = false;
-    	}
-
-    	if (player.moved) {
-    		update_moving_entity(player);
-    	}
-
-    	for (gnome in Entity.get(Gnome)) {
-    		update_moving_entity(gnome);
-    	}
-    }
-
-    var random_move_possible: Array<IntVector2> = [{x: 1, y: 0}, {x: -1, y: 0}, {x: 0, y: 1}, {x: 0, y: -1},
-    {x: 1, y: 1}, {x: -1, y: 1}, {x: -1, y: -1}, {x: 1, y: -1}];
-    function random_move(x, y): IntVector2 {
-    	var moves = Random.shuffle(random_move_possible);
-
-    	while (moves.length > 0 && walls[x + moves[0].x][y + moves[0].y]) {
-    		moves.shift();
-    	}
-
-    	return moves[0];
-    }
-
-    function random_neighbor(x, y): IntVector2 {
-    	var move = random_move(x, y);
-    	return {x: x + move.x, y: y + move.y}
-    }
-
-    function get_move_to(x1, y1, x2, y2): IntVector2 {
-    	return {x: Math.sign(x2 - x1), y: Math.sign(y2 - y1)};
-    }
-
-    function move_entity_to(entity, x, y): Bool {
-    	var move = get_move_to(entity.x, entity.y, x, y);
-    	if (move.x != 0 || move.y != 0) {
-    		entity.dx = move.x;
-    		entity.dy = move.y;
-    		entity.moved = true;
-
-    		return true;
-    	} else {
-    		return false;
-    	}
-    }
-
-    function closest_resource(x, y): Resource {
+	function closest_resource(x, y): Resource {
 		// Go to closest resource
 		var closest = null;
 		var closest_distance: Float = 100000;
@@ -382,75 +231,173 @@ class Main {
 		return closest;
 	}
 
-	
-
-	function update() {
-
-		if (turn_timer == 0) {
-			for (gnome in Entity.get(Gnome)) {
-				switch (gnome.state) {
-					case NpcState_Idle: {
-
-						var distance_to_home = Math.dst(gnome.x, gnome.y, gnome.home_x, gnome.home_y);
-						if (distance_to_home < gnome.leash_range) {
-    						// Move around 
-    						var neighbor = random_neighbor(gnome.x, gnome.y);
-    						move_entity_to(gnome, neighbor.x, neighbor.y);
-    					} else {
-    						// Go home
-    						move_entity_to(gnome, gnome.home_x, gnome.home_y);
-    					}
-
-    					gnome.state_timer++;
-    					if (gnome.state_timer > gnome.gather_interval) {
-    						gnome.state_timer = 0;
-    						gnome.state = NpcState_MovingTo;
-
-    						var resource = closest_resource(gnome.x, gnome.y);
-    						if (resource != null) {
-    							var random_displacement = random_move(resource.x, resource.y);
-    							gnome.destination_x = resource.x - random_displacement.x;
-    							gnome.destination_y = resource.y - random_displacement.y;
-    							gnome.gathered_resource = resource;
-    						}
-    					}
-    				}
-    				case NpcState_MovingTo: {
-    					var moved = move_entity_to(gnome, gnome.destination_x, gnome.destination_y);
-
-    					if (!moved) {
-    						// reached destination
-    						gnome.state = NpcState_Gathering;
-    					}
-    				}
-    				case NpcState_Gathering: {
-    					gnome.gathered_resource.hp--;
-
-    					if (gnome.gathered_resource.hp <= 0) {
-    						// If not gathered yet, gather resource and delete
-							if (!gnome.gathered_resource.gathered) {
-								gnome.gathered_resource.delete();
-
-								switch (gnome.gathered_resource.type) {
-									case ResourceType_Tree: {
-										gnome_wood++;
-									}
-									case ResourceType_Bananas: {
-										gnome_bananas++;
-									}
-									default:
-								}
-							}
-
-							gnome.gathered_resource = null;
-							gnome.state = NpcState_Idle;
-						}
-					}
-					default:
-				}
+	function update_entities() {
+		// Respawn resources when they get low, respawn near resources of same type
+		var bananas_count = 0;
+		var tree_count = 0;
+		for (resource in Entity.get(Resource)) {
+			switch (resource.type) {
+				case ResourceType_Bananas: bananas_count++;
+				case ResourceType_Tree: tree_count++;
+				default:
 			}
 		}
 
+		var k = 0;
+		var all_resources = Entity.get(Resource);
+		if (bananas_count < bananas_count_min) {
+			while (true) {
+				k = Random.int(0, all_resources.length - 1);
+				if (all_resources[k].type == ResourceType_Bananas) {
+					break;
+				}
+			}
+
+			var space = random_neighbor_space(all_resources[k].x, all_resources[k].y);
+			if (space != null) {
+				make_bananas(space.x, space.y);
+			}
+		}
+
+		if (tree_count < tree_count_min) {
+			var all_resources = Entity.get(Resource);
+			while (true) {
+				k = Random.int(0, all_resources.length - 1);
+				if (all_resources[k].type == ResourceType_Tree) {
+					break;
+				}	
+			}
+
+			var space = random_neighbor_space(all_resources[k].x, all_resources[k].y);
+			if (space != null) {
+				make_tree(space.x, space.y);
+			}
+		}
+
+
+
+
+		for (gnome in Entity.get(Gnome)) {
+
+    		// Gnomes constantly consume energy
+    		gnome.energy_decrease_timer++;
+    		if (gnome.energy_decrease_timer >= gnome.energy_decrease_timer_max) {
+    			gnome.energy_decrease_timer = 0;
+
+    			gnome.energy--;
+
+    			if (gnome.energy < 0) {
+    				gnome.energy = 0;
+    				// decrease hp if no energy
+    				gnome.hp -= 1;
+    			}
+    		}
+
+    		if (gnome.hp <= 0) {
+    			gnome.state = NpcState_Dead;
+    		}
+
+    		switch (gnome.state) {
+    			case NpcState_Dead: 
+    			case NpcState_Idle: {
+
+    				// When idle, go home and move around nearby
+    				var distance_to_home = Math.dst(gnome.x, gnome.y, gnome.home_x, gnome.home_y);
+    				if (distance_to_home < gnome.leash_range) {
+						// Move around 
+						var neighbor = random_neighbor_space(gnome.x, gnome.y);
+						if (neighbor != null) {
+							move_entity_to(gnome, neighbor.x, neighbor.y);
+						}
+					} else {
+						// Go home
+						move_entity_to(gnome, gnome.home_x, gnome.home_y);
+					}
+
+
+					// Gather if energy is low
+					if (gnome.energy / gnome.energy_max < 0.75) {
+						gnome.state = NpcState_MovingTo;
+
+						var resource = closest_resource(gnome.x, gnome.y);
+						if (resource != null) {
+							var random_displacement = random_move(resource.x, resource.y);
+							if (random_displacement != null) {
+								gnome.destination_x = resource.x - random_displacement.x;
+								gnome.destination_y = resource.y - random_displacement.y;
+								gnome.gathered_resource = resource;
+							}
+						}
+					}
+				}
+				case NpcState_MovingTo: {
+					var moved = move_entity_to(gnome, gnome.destination_x, gnome.destination_y);
+
+					if (!moved) {
+						// reached destination
+						gnome.state = NpcState_Gathering;
+					}
+				}
+				case NpcState_Gathering: {
+					// If not gathered yet, gather resource and delete
+					if (gnome.gathered_resource.hp > 0) {
+						if (gnome.wood > 0) {
+							// wood makes you gather faster
+							gnome.gathered_resource.hp -= 2;
+							gnome.wood--;
+						} else {
+							gnome.gathered_resource.hp -= 1;
+						}
+						gnome.energy -= 1;
+
+
+						if (gnome.gathered_resource.hp <= 0) {
+							gnome.gathered_resource.delete();
+
+							switch (gnome.gathered_resource.type) {
+								case ResourceType_Tree: {
+									gnome.wood += 10;
+								}
+								case ResourceType_Bananas: {
+									gnome.energy += 40;
+									if (gnome.energy > gnome.energy_max) {
+										gnome.energy = gnome.energy_max;
+									}
+								}
+								default:
+							}
+						}
+					}
+
+					if (gnome.gathered_resource.hp <= 0) {
+						gnome.gathered_resource = null;
+						gnome.state = NpcState_Idle;
+					}
+				}
+				default:
+			}
+		}
+	}
+
+	function update_result() {
+		function update_moving_entity(entity) {
+			entity.x += entity.dx;
+			entity.y += entity.dy;
+			entity.dx = 0;
+			entity.dy = 0;
+			entity.moved = false;
+		}
+
+		if (player.moved) {
+			update_moving_entity(player);
+		}
+
+		for (gnome in Entity.get(Gnome)) {
+			update_moving_entity(gnome);
+		}
+	}	
+
+	function update() {
 
 		if (!player.moved) {
 			if (Mouse.right_held()) {
@@ -470,6 +417,7 @@ class Main {
 		if (turn_timer >= turn_timer_max) {
 			turn_timer = 0;
 
+			update_entities();
 			update_result();
 		}
 

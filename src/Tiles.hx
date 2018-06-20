@@ -15,5 +15,6 @@ class Tiles {
     static inline var Bananas = tilenum(4, 0);
     static inline var Tree = tilenum(5, 0);
     static inline var Gnome2 = tilenum(6, 0);
+    static inline var GnomeDead = tilenum(7, 0);
 
 }
