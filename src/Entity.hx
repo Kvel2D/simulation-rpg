@@ -2,6 +2,12 @@ import haxegon.*;
 import haxe.ds.ObjectMap;
 import haxegon.IntVector2;
 
+enum EntityType {
+    EntityType_Player;
+    EntityType_Gnome;
+    EntityType_Resource;
+}
+
 enum ResourceType {
     ResourceType_None;
     ResourceType_Tree;
@@ -12,8 +18,7 @@ enum NpcState {
     NpcState_None;
     NpcState_Dead;
     NpcState_Idle;
-    NpcState_MovingTo;
-    NpcState_Gathering;
+    NpcState_Attack;
 }
 
 @:publicFields
@@ -58,6 +63,8 @@ class Entity {
 }
 
 class Player extends Entity {
+	var entity_type = EntityType_Player;
+
     var x: Int = 0;
     var y: Int = 0;
     var dx: Int = 0;
@@ -66,6 +73,8 @@ class Player extends Entity {
 }
 
 class Gnome extends Entity {
+	var entity_type = EntityType_Gnome;
+
     var x: Int = 0;
     var y: Int = 0;
     var dx: Int = 0;
@@ -79,12 +88,11 @@ class Gnome extends Entity {
     var leash_range = 3;
 
     var state_timer = 0;
-    var gather_interval = 10;
     var gathered_resource: Resource = null;
 
     var hp = 10;
     var hp_max = 10;
-    var energy = 100;
+    var energy = 50;
     var energy_max = 100;
     var energy_decrease_timer = 0;
     var energy_decrease_timer_max = 5;
@@ -94,8 +102,11 @@ class Gnome extends Entity {
 
 
 class Resource extends Entity {
+	var entity_type = EntityType_Resource;
+
     var x: Int = 0;
     var y: Int = 0;
-    var type = ResourceType_Bananas;
+    var resource_type = ResourceType_Bananas;
     var hp: Int = 10;
+    var hp_max: Int = 10;
 }

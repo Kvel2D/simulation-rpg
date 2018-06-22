@@ -1,11 +1,18 @@
-make gathering take up one state in state machine
-info about entities on hover
+
+separate bananas and wood for npc decisionmaking, make npcs gather wood only when they need it
+
+
+fix resolution, upscale graphics
+change gathering to be part of the "goal" system, goals should cover all possible npc actions: moving somewhere, gathering a resource, killing an enemy(maybe gathering and killing is the same thing)
+change decisionmaking to come from analysis of all nearby objects, sorting by percieved benefit of executing, for food the benefit is the energy worth of food minus some weighted distance to the food
+doesn't have to be completely mathematically accurate, can be arbitrary where gnomes sometimes make unoptimal decisions
+
+
 
 ------------------------------------------
-npcs require and consume food
-gathering consumes energy
-npcs gather don't gather when they are full on energy(or somewhat full)
-wood changes the gather speed
-respawn resources
-take care of null returns from random_move
 
+change random_move to not modify moves array, yikes...
+info about entities on hover
+change plant spawning to not spawn on top of other entities
+add free_map of free spaces, add free_map modification on spawning/moving of entities
+make gathering take up one state in state machine
