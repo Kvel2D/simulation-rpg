@@ -32,6 +32,7 @@ class Random {
 		}
 	}
 
+	// modifies array in-place
 	public static function shuffle<T>(array: Array<T>): Array<T> {
 		if (array != null) {
 			for (i in 0...array.length) {

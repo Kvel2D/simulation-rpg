@@ -1,18 +1,22 @@
 
-separate bananas and wood for npc decisionmaking, make npcs gather wood only when they need it
+
+process table to determine value
+
+sort by value and distance
 
 
-fix resolution, upscale graphics
-change gathering to be part of the "goal" system, goals should cover all possible npc actions: moving somewhere, gathering a resource, killing an enemy(maybe gathering and killing is the same thing)
+
+each entity type has a table for what they get from other entities
+entities can obtain resources, resources convert to value depending on how much the entity needs those resources
+entities can also obtain value even if they dont get any resources, if they dislike them by design or if they grew to dislike them
+
+
+
 change decisionmaking to come from analysis of all nearby objects, sorting by percieved benefit of executing, for food the benefit is the energy worth of food minus some weighted distance to the food
-doesn't have to be completely mathematically accurate, can be arbitrary where gnomes sometimes make unoptimal decisions
 
 
 
 ------------------------------------------
-
-change random_move to not modify moves array, yikes...
-info about entities on hover
-change plant spawning to not spawn on top of other entities
-add free_map of free spaces, add free_map modification on spawning/moving of entities
-make gathering take up one state in state machine
+increase resolution to make text smaller, scale up tiles
+remove destination for gnome's goals, wasn't used anyway
+add value tables

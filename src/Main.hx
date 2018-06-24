@@ -11,6 +11,7 @@ using Lambda;
 class Main {
 	static inline var screen_width = 1600;
 	static inline var screen_height = 1000;
+	static inline var scale = 4;
 	static inline var tilesize = 8;
 	static inline var map_width = 200;
 	static inline var map_height = 200;
@@ -34,14 +35,15 @@ class Main {
 
 	function new() {
 		Gfx.resize_screen(screen_width, screen_height);
-		Text.setfont("pixelFJ8", 8);
+		Text.setfont("pixelFJ8", 16);
 		Gfx.load_tiles("tiles", tilesize, tilesize);
 
 		#if flash
-		Gfx.resize_screen(screen_width, screen_height, 4);
+		Gfx.resize_screen(screen_width, screen_height, 1);
 		#else 
 		Gfx.resize_screen(screen_width, screen_height, 1);
 		#end
+
 
 		for (x in 0...map_width) {
 			for (y in 0...map_height) {
@@ -110,6 +112,7 @@ class Main {
 		gnome.home_y = y - 10;
 		gnome.state = NpcState_Idle;
 		add_to_free_map(x, y);
+		gnome.name = "gnome";
 	}
 
 	function make_bananas(x, y) {
@@ -118,6 +121,7 @@ class Main {
 		bananas.y = y;
 		bananas.resource_type = ResourceType_Bananas;
 		add_to_free_map(x, y);
+		bananas.name = "banana";
 	}
 
 	function make_tree(x, y) {
@@ -126,15 +130,23 @@ class Main {
 		tree.y = y;
 		tree.resource_type = ResourceType_Tree;
 		add_to_free_map(x, y);
+		tree.name = "tree";
 	}
 
-
-	function screen_x(x) {
+	// in terms of cells
+	function view_x(x) {
 		return x - player.x + Math.floor(view_width / 2);
 	}
-
-	function screen_y(y) {
+	function view_y(y) {
 		return y - player.y + Math.floor(view_height / 2);
+	}
+
+	// in terms of pixels
+	function screen_x(x) {
+		return view_x(x) * tilesize * scale;
+	}
+	function screen_y(y) {
+		return view_y(y) * tilesize * scale;
 	}
 
 	function out_of_bounds(x, y) {
@@ -142,18 +154,21 @@ class Main {
 	}
 
 	function out_of_viewport(x, y) {
-		return screen_x(x) < 0 || screen_y(y) < 0 
-		|| screen_x(x) >= view_width || screen_y(y) >= view_height;
+		return view_x(x) < 0 || view_y(y) < 0 
+		|| view_x(x) >= view_width || view_y(y) >= view_height;
 	}
 
 	function draw_entity(entity, tile) {
 		if (!out_of_viewport(entity.x, entity.y)) {
-			Gfx.draw_tile(screen_x(entity.x) * tilesize, screen_y(entity.y) * tilesize,
+			Gfx.draw_tile(screen_x(entity.x), screen_y(entity.y),
 				tile); 
 		}
 	}
 
 	function render() {
+
+		Gfx.scale(4, 4);
+
 		var start_x = player.x - Math.floor(view_width / 2);
 		var end_x = player.x + Math.ceil(view_width / 2);
 		var start_y = player.y - Math.floor(view_height / 2);
@@ -162,7 +177,7 @@ class Main {
 		for (x in start_x...end_x) {
 			for (y in start_y...end_y) {
 				if (!out_of_bounds(x, y)) {
-					Gfx.draw_tile(screen_x(x) * tilesize, screen_y(y) * tilesize, 
+					Gfx.draw_tile(screen_x(x), screen_y(y), 
 						tiles[x][y]);
 				}
 			}
@@ -191,14 +206,13 @@ class Main {
 
 		for (entity in Entity.all) {
 			if (!out_of_viewport(entity.x, entity.y)
-				&& Math.dst2(screen_x(entity.x) * tilesize, 
-					screen_y(entity.y) * tilesize, 
-					Mouse.x, Mouse.y) < tilesize * tilesize) 
+				&& Math.dst2(screen_x(entity.x), screen_y(entity.y), 
+					Mouse.x, Mouse.y) < tilesize * tilesize * scale * scale) 
 			{
 				var text_y = 0;
 				function display_line(text) {
-					Text.display(view_width * tilesize + 10, text_y, text);
-					text_y += 10;
+					Text.display(view_width * tilesize * scale + 10, text_y, text);
+					text_y += 20;
 				}
 
 				display_line('${entity.entity_type}');
@@ -208,7 +222,6 @@ class Main {
 					}
 					case EntityType_Gnome: {
 						display_line('home x=${entity.home_x} y=${entity.home_y}');
-						display_line('destination x=${entity.destination_x}');
 						display_line('state=${entity.state}');
 						display_line('hp=${entity.hp}/${entity.hp_max}');
 						display_line('energy=${entity.energy}/${entity.energy_max}');
@@ -227,7 +240,6 @@ class Main {
 	{x: 1, y: 1}, {x: -1, y: 1}, {x: -1, y: -1}, {x: 1, y: -1}];
 	function random_move(x, y): IntVector2 {
 		var moves = Random.shuffle(random_move_possible);
-		trace(moves.length);
 
 		return moves[0];
 	}
@@ -240,7 +252,7 @@ class Main {
 			&& !out_of_bounds(x + moves[i].x, y + moves[i].y)
 			&& free_map[x + moves[i].x][y + moves[i].y]) 
 		{
-		 	i++;
+			i++;
 		}
 
 		if (i < moves.length) {
@@ -283,7 +295,6 @@ class Main {
 		if (move.x != 0 || move.y != 0) {
 			entity.dx = move.x;
 			entity.dy = move.y;
-			entity.moved = true;
 
 			return true;
 		} else {
@@ -312,17 +323,8 @@ class Main {
 
 			var resource = closest_resource(gnome.x, gnome.y);
 			if (resource != null) {
-
-				var random_displacement = random_move(resource.x, resource.y);
-				if (random_displacement != null) {
-					gnome.destination_x = resource.x - random_displacement.x;
-					gnome.destination_y = resource.y - random_displacement.y;
-					gnome.gathered_resource = resource;
-
-					gnome.state = NpcState_Attack;
-				} else {
-					trace("fail");
-				}
+				gnome.gathered_resource = resource;
+				gnome.state = NpcState_Attack;
 			}
 		}
 	}
@@ -362,9 +364,6 @@ class Main {
 						}
 						case ResourceType_Bananas: {
 							gnome.energy += 40;
-							if (gnome.energy > gnome.energy_max) {
-								gnome.energy = gnome.energy_max;
-							}
 						}
 						default:
 					}
@@ -463,12 +462,12 @@ class Main {
     		entity.y += entity.dy;
     		entity.dx = 0;
     		entity.dy = 0;
-    		entity.moved = false;
 
     		subtract_from_free_map(entity.x, entity.y);
     	}
 
     	update_moving_entity(player);
+    	player.already_moved = false;
 
     	for (gnome in Entity.get(Gnome)) {
     		update_moving_entity(gnome);
@@ -477,17 +476,19 @@ class Main {
 
     function update() {
 
-    	if (!player.moved) {
+    	if (!player.already_moved) {
     		if (Mouse.right_held()) {
-    			var mouse_difference_x = Mouse.x - screen_x(player.x) * tilesize - tilesize / 2;
-    			var mouse_difference_y = Mouse.y - screen_y(player.y) * tilesize - tilesize / 2;
-    			if (Math.abs(mouse_difference_x) > tilesize / 2) {
+    			var mouse_difference_x = Mouse.x - screen_x(player.x) 
+    			- tilesize * scale / 2;
+    			var mouse_difference_y = Mouse.y - screen_y(player.y)
+    			- tilesize * scale / 2;
+    			if (Math.abs(mouse_difference_x) > tilesize * scale / 2) {
     				player.dx = Math.sign(mouse_difference_x);
     			}
-    			if (Math.abs(mouse_difference_y) > tilesize / 2) {
+    			if (Math.abs(mouse_difference_y) > tilesize * scale/ 2) {
     				player.dy = Math.sign(mouse_difference_y);
     			}
-    			player.moved = true;
+    			player.already_moved = true;
     		}
     	}
 
