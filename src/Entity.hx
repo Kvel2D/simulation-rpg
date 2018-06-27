@@ -4,7 +4,7 @@ import haxegon.IntVector2;
 
 enum EntityType {
 	EntityType_Player;
-	EntityType_Gnome;
+	EntityType_Mob;
 	EntityType_Resource;
 }
 
@@ -14,11 +14,11 @@ enum ResourceType {
 	ResourceType_Bananas;
 }
 
-enum NpcState {
-	NpcState_None;
-	NpcState_Dead;
-	NpcState_Idle;
-	NpcState_Attack;
+enum MobState {
+	MobState_None;
+	MobState_Dead;
+	MobState_Idle;
+	MobState_Goal;
 }
 
 
@@ -73,8 +73,8 @@ class Player extends Entity {
 	var already_moved = false;
 }
 
-class Gnome extends Entity {
-	var entity_type = EntityType_Gnome;
+class Mob extends Entity {
+	var entity_type = EntityType_Mob;
 
 	var x: Int = 0;
 	var y: Int = 0;
@@ -82,11 +82,11 @@ class Gnome extends Entity {
 	var dy: Int = 0;
 	var home_x: Int = 0;
 	var home_y: Int = 0;
-	var state: NpcState = NpcState_None;
+	var state: MobState = MobState_None;
 	var leash_range = 3;
 
 	var state_timer = 0;
-	var gathered_resource: Resource = null;
+	var goal: Dynamic = null;
 
 	var hp = 10;
 	var hp_max = 10;
@@ -94,10 +94,11 @@ class Gnome extends Entity {
 	var energy_max = 100;
 	var energy_decrease_timer = 0;
 	var energy_decrease_timer_max = 5;
+	var motivation = 0; // 0 to 100, corresponds to chance of switching from idle to goal
 
 	var wood = 0;
 
-    var name = "";
+	var name = "";
 }
 
 

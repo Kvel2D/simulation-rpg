@@ -21,6 +21,8 @@ class Main {
 	static inline var bananas_count_min = 20;
 	static inline var tree_count_min = 20;
 
+	var paused = false;
+
 
 	var turn_timer = 0;
 	static inline var turn_timer_max  = 10;
@@ -32,6 +34,7 @@ class Main {
 
 	var player: Player;
 
+	var tracked_entity: Dynamic = null;
 
 	function new() {
 		Gfx.resize_screen(screen_width, screen_height);
@@ -70,8 +73,14 @@ class Main {
 		add_to_free_map(player.x, player.y);
 
 
-		make_gnome(102, 102);
-		make_gnome(98, 106);
+		make_mob(102, 102);
+		make_mob(98, 106);
+
+
+		make_bananas(10, 10);
+		if (free_map[10][10]) {
+			trace("huh");
+		}
 
 		for (i in 0...10) {
 			var position = {
@@ -104,15 +113,16 @@ class Main {
 		}
 	}
 
-	function make_gnome(x, y) {
-		var gnome = new Gnome();
-		gnome.x = x;
-		gnome.y = y;
-		gnome.home_x = x - 10;
-		gnome.home_y = y - 10;
-		gnome.state = NpcState_Idle;
+	function make_mob(x, y) {
+		var mob = new Mob();
+		mob.x = x;
+		mob.y = y;
+		mob.home_x = x - 10;
+		mob.home_y = y - 10;
+		mob.state = MobState_Idle;
 		add_to_free_map(x, y);
-		gnome.name = "gnome";
+		mob.name = "mob";
+		mob.motivation = 20;
 	}
 
 	function make_bananas(x, y) {
@@ -121,7 +131,7 @@ class Main {
 		bananas.y = y;
 		bananas.resource_type = ResourceType_Bananas;
 		add_to_free_map(x, y);
-		bananas.name = "banana";
+		bananas.name = "bananas";
 	}
 
 	function make_tree(x, y) {
@@ -165,77 +175,6 @@ class Main {
 		}
 	}
 
-	function render() {
-
-		Gfx.scale(4, 4);
-
-		var start_x = player.x - Math.floor(view_width / 2);
-		var end_x = player.x + Math.ceil(view_width / 2);
-		var start_y = player.y - Math.floor(view_height / 2);
-		var end_y = player.y + Math.ceil(view_height / 2);
-
-		for (x in start_x...end_x) {
-			for (y in start_y...end_y) {
-				if (!out_of_bounds(x, y)) {
-					Gfx.draw_tile(screen_x(x), screen_y(y), 
-						tiles[x][y]);
-				}
-			}
-		}
-
-		for (gnome in Entity.get(Gnome)) {
-			if (gnome.state == NpcState_Dead) {
-				draw_entity(gnome, Tiles.GnomeDead);
-			} else {
-				draw_entity(gnome, Tiles.Gnome);
-			}
-		}
-
-		for (resource in Entity.get(Resource)) {
-			switch (resource.resource_type) {
-				case ResourceType_Bananas: draw_entity(resource, Tiles.Bananas);
-				case ResourceType_Tree: draw_entity(resource, Tiles.Tree);
-				default:
-			}
-		}
-
-		draw_entity(player, Tiles.Player);
-
-
-
-
-		for (entity in Entity.all) {
-			if (!out_of_viewport(entity.x, entity.y)
-				&& Math.dst2(screen_x(entity.x), screen_y(entity.y), 
-					Mouse.x, Mouse.y) < tilesize * tilesize * scale * scale) 
-			{
-				var text_y = 0;
-				function display_line(text) {
-					Text.display(view_width * tilesize * scale + 10, text_y, text);
-					text_y += 20;
-				}
-
-				display_line('${entity.entity_type}');
-				display_line('x=${entity.x} y=${entity.y}');
-				switch (entity.entity_type) {
-					case EntityType_Player: {
-					}
-					case EntityType_Gnome: {
-						display_line('home x=${entity.home_x} y=${entity.home_y}');
-						display_line('state=${entity.state}');
-						display_line('hp=${entity.hp}/${entity.hp_max}');
-						display_line('energy=${entity.energy}/${entity.energy_max}');
-					}
-					case EntityType_Resource: {
-						display_line('hp=${entity.hp}/${entity.hp_max}');
-						display_line('resource type=${entity.resource_type}');
-					}
-				}
-				break;
-			}
-		}
-	}
-
 	var random_move_possible: Array<IntVector2> = [{x: 1, y: 0}, {x: -1, y: 0}, {x: 0, y: 1}, {x: 0, y: -1},
 	{x: 1, y: 1}, {x: -1, y: 1}, {x: -1, y: -1}, {x: 1, y: -1}];
 	function random_move(x, y): IntVector2 {
@@ -249,8 +188,8 @@ class Main {
 
 		var i = 0;
 		while (i < moves.length 
-			&& !out_of_bounds(x + moves[i].x, y + moves[i].y)
-			&& free_map[x + moves[i].x][y + moves[i].y]) 
+			&& (out_of_bounds(x + moves[i].x, y + moves[i].y)
+				|| !free_map[x + moves[i].x][y + moves[i].y])) 
 		{
 			i++;
 		}
@@ -303,76 +242,142 @@ class Main {
 	}
 
 
-	function gnome_idle(gnome: Gnome) {
+	function mob_idle(mob: Mob) {
 		// When idle, go home and move around nearby
-		var distance_to_home = Math.dst(gnome.x, gnome.y, gnome.home_x, gnome.home_y);
-		if (distance_to_home < gnome.leash_range) {
+		var distance_to_home = Math.dst(mob.x, mob.y, mob.home_x, mob.home_y);
+		if (distance_to_home < mob.leash_range) {
 			// Move around 
-			var neighbor = random_neighbor_space(gnome.x, gnome.y);
+			var neighbor = random_neighbor_space(mob.x, mob.y);
 			if (neighbor != null) {
-				move_entity_to(gnome, neighbor.x, neighbor.y);
+				move_entity_to(mob, neighbor.x, neighbor.y);
 			}
 		} else {
 			// Go home
-			move_entity_to(gnome, gnome.home_x, gnome.home_y);
+			move_entity_to(mob, mob.home_x, mob.home_y);
 		}
 
 
-		// Gather if energy is low
-		if (gnome.energy / gnome.energy_max < 0.75) {
+		var starving = ((mob.energy / mob.energy_max) < 0.25);
 
-			var resource = closest_resource(gnome.x, gnome.y);
-			if (resource != null) {
-				gnome.gathered_resource = resource;
-				gnome.state = NpcState_Attack;
+		// do goal if motivated
+		// always do goal if starving
+		if (starving || Random.chance(mob.motivation)) {
+			// Determine if there's a goal to do
+			var need_energy = ((mob.energy / mob.energy_max) < 0.75);
+			var need_wood = (mob.wood == 0);
+
+			var best_value = -100000000;
+			var best_distance = 100000000;
+			var best_goal = null;
+
+			function process_for_value(entity) {
+				if (!Values.values[mob.name].exists(entity.name)) {
+					// No values for this type of goal
+					return;
+				}
+
+				// total value is value of resources/dislike gained
+				// minus the distance to goal
+				// if nothing is gained, goal is ignored
+				var distance = Std.int(Math.dst(mob.x, mob.y, entity.x, entity.y));
+
+				// prioritize closer goals(even if gain is greater)
+				if (distance > best_distance) {
+					return;
+				} else {
+
+					var values = Values.values[mob.name][entity.name];
+
+					var gain = 0;
+					if (values.exists("energy")) {
+						if (starving) {
+							// prioritize energy above all if starving
+							gain += 100 * values["energy"];
+						} else if (need_energy) {
+							gain += values["energy"];
+						}
+					}
+					if (values.exists("wood") && need_wood) {
+						gain += values["wood"]; 			
+					}
+					if (values.exists("dislike")) {
+						gain += values["dislike"];
+					}
+
+					// If gain something and got a better score
+					// select this goal
+					if (gain != 0 && (gain - distance) > best_value) {
+						best_value = gain -	distance;
+						best_distance = distance;
+						best_goal = entity;
+					}
+				}
+			}
+
+			for (resource in Entity.get(Resource)) {	
+				process_for_value(resource);
+			}
+			for (mob in Entity.get(Mob)) {
+				process_for_value(mob);
+			}
+
+			// Don't goal on yourself
+			if (best_goal == mob) {
+				best_goal = null;
+			}
+
+			if (best_goal != null) {
+				// TODO: insert motivation check here
+				mob.goal = best_goal;
+				mob.state = MobState_Goal;
 			}
 		}
 	}
 
-	function gnome_attack(gnome: Gnome) {
-		var distance_to_goal = Math.dst2(gnome.x, gnome.y, 
-			gnome.gathered_resource.x, gnome.gathered_resource.y);
+	function mob_goal(mob: Mob) {
+		var distance_to_goal = Math.dst2(mob.x, mob.y, 
+			mob.goal.x, mob.goal.y);
 
 		if (distance_to_goal > 2) {
 			// Not next to goal yet
 			var move = {
-				x: Math.sign(gnome.gathered_resource.x - gnome.x), 
-				y: Math.sign(gnome.gathered_resource.y - gnome.y)
+				x: Math.sign(mob.goal.x - mob.x), 
+				y: Math.sign(mob.goal.y - mob.y)
 			};
 
-			move_entity_to(gnome, gnome.x + move.x, gnome.y + move.y);
+			move_entity_to(mob, mob.x + move.x, mob.y + move.y);
 		} else {
 			// Next to goal, gather it
 			// If not gathered yet, gather resource and delete
-			if (gnome.gathered_resource.hp > 0) {
-				if (gnome.wood > 0) {
+			if (mob.goal.hp > 0) {
+				if (mob.wood > 0) {
 					// wood makes you gather faster
-					gnome.gathered_resource.hp -= 2;
-					gnome.wood--;
+					mob.goal.hp -= 2;
+					mob.wood--;
 				} else {
-					gnome.gathered_resource.hp -= 1;
+					mob.goal.hp -= 1;
 				}
-				gnome.energy -= 1;
+				mob.energy -= 1;
 
 
-				if (gnome.gathered_resource.hp <= 0) {
-					gnome.gathered_resource.delete();
+				if (mob.goal.hp <= 0) {
+					mob.goal.delete();
 
-					switch (gnome.gathered_resource.resource_type) {
+					switch (mob.goal.resource_type) {
 						case ResourceType_Tree: {
-							gnome.wood += 10;
+							mob.wood += 10;
 						}
 						case ResourceType_Bananas: {
-							gnome.energy += 40;
+							mob.energy += 40;
 						}
 						default:
 					}
 				}
 			}
 
-			if (gnome.gathered_resource.hp <= 0) {
-				gnome.gathered_resource = null;
-				gnome.state = NpcState_Idle;
+			if (mob.goal.hp <= 0) {
+				mob.goal = null;
+				mob.state = MobState_Idle;
 			}		
 		}
 	}
@@ -424,30 +429,30 @@ class Main {
 
 
 
-		for (gnome in Entity.get(Gnome)) {
+		for (mob in Entity.get(Mob)) {
 
-    		// Gnomes constantly consume energy
-    		gnome.energy_decrease_timer++;
-    		if (gnome.energy_decrease_timer >= gnome.energy_decrease_timer_max) {
-    			gnome.energy_decrease_timer = 0;
+    		// Mobs constantly consume energy
+    		mob.energy_decrease_timer++;
+    		if (mob.energy_decrease_timer >= mob.energy_decrease_timer_max) {
+    			mob.energy_decrease_timer = 0;
 
-    			gnome.energy -= 3;
+    			mob.energy -= 3;
 
-    			if (gnome.energy < 0) {
-    				gnome.energy = 0;
+    			if (mob.energy < 0) {
+    				mob.energy = 0;
     				// decrease hp if no energy
-    				gnome.hp -= 1;
+    				mob.hp -= 1;
     			}
     		}
 
-    		if (gnome.hp <= 0) {
-    			gnome.state = NpcState_Dead;
+    		if (mob.hp <= 0) {
+    			mob.state = MobState_Dead;
     		}
 
-    		switch (gnome.state) {
-    			case NpcState_Dead: 
-    			case NpcState_Idle: gnome_idle(gnome);
-    			case NpcState_Attack: gnome_attack(gnome);
+    		switch (mob.state) {
+    			case MobState_Dead: 
+    			case MobState_Idle: mob_idle(mob);
+    			case MobState_Goal: mob_goal(mob);
     			default:
     		}
 
@@ -469,12 +474,87 @@ class Main {
     	update_moving_entity(player);
     	player.already_moved = false;
 
-    	for (gnome in Entity.get(Gnome)) {
-    		update_moving_entity(gnome);
+    	for (mob in Entity.get(Mob)) {
+    		update_moving_entity(mob);
+    	}
+    }
+
+    function render() {
+
+    	Gfx.scale(4, 4);
+
+    	var start_x = player.x - Math.floor(view_width / 2);
+    	var end_x = player.x + Math.ceil(view_width / 2);
+    	var start_y = player.y - Math.floor(view_height / 2);
+    	var end_y = player.y + Math.ceil(view_height / 2);
+
+    	Gfx.fill_box(0, 0, view_width * tilesize * scale, 
+    		view_height * tilesize * scale, Col.LIGHTGREEN);
+    	// for (x in start_x...end_x) {
+    	// 	for (y in start_y...end_y) {
+    	// 		if (!out_of_bounds(x, y)) {
+    	// 			Gfx.draw_tile(screen_x(x), screen_y(y), 
+    	// 				tiles[x][y]);
+    	// 		}
+    	// 	}
+    	// }
+
+    	for (mob in Entity.get(Mob)) {
+    		if (mob.state == MobState_Dead) {
+    			draw_entity(mob, Tiles.MobDead);
+    		} else {
+    			draw_entity(mob, Tiles.Mob);
+    		}
+    	}
+
+    	for (resource in Entity.get(Resource)) {
+    		switch (resource.resource_type) {
+    			case ResourceType_Bananas: draw_entity(resource, Tiles.Bananas);
+    			case ResourceType_Tree: draw_entity(resource, Tiles.Tree);
+    			default:
+    		}
+    	}
+
+    	draw_entity(player, Tiles.Player);
+
+
+
+
+    	if (tracked_entity != null) {
+    		var text_y = 0;
+    		function display_line(text) {
+    			Text.display(view_width * tilesize * scale + 10, text_y, text);
+    			text_y += 20;
+    		}
+
+    		display_line('${tracked_entity.entity_type}');
+    		display_line('x=${tracked_entity.x} y=${tracked_entity.y}');
+    		switch (tracked_entity.entity_type) {
+    			case EntityType_Player: {
+    			}
+    			case EntityType_Mob: {
+    				display_line('home x=${tracked_entity.home_x} y=${tracked_entity.home_y}');
+    				display_line('state=${tracked_entity.state}');
+    				display_line('hp=${tracked_entity.hp}/${tracked_entity.hp_max}');
+    				display_line('energy=${tracked_entity.energy}/${tracked_entity.energy_max}');
+    				if (tracked_entity.goal != null) {
+    					display_line('goal x=${tracked_entity.goal.x} goal y=${tracked_entity.goal.y}');
+    				}
+    			}
+    			case EntityType_Resource: {
+    				display_line('hp=${tracked_entity.hp}/${tracked_entity.hp_max}');
+    				display_line('resource type=${tracked_entity.resource_type}');
+    			}
+    			default:
+    		}
     	}
     }
 
     function update() {
+
+    	if (Input.just_pressed(Key.SPACE)) {
+    		paused = !paused;
+    	}
 
     	if (!player.already_moved) {
     		if (Mouse.right_held()) {
@@ -492,11 +572,25 @@ class Main {
     		}
     	}
 
-    	turn_timer++;
-    	if (turn_timer >= turn_timer_max) {
-    		turn_timer = 0;
+    	if (Mouse.left_click()) {
+    		for (entity in Entity.all) {
+    			if (!out_of_viewport(entity.x, entity.y)
+    				&& Math.dst2(screen_x(entity.x), screen_y(entity.y), 
+    					Mouse.x, Mouse.y) < tilesize * tilesize * scale * scale) 
+    			{
+    				tracked_entity = entity;
+    				break;
+    			}
+    		}
+    	}
 
-    		update_entities();
+    	if (!paused) {
+    		turn_timer++;
+    		if (turn_timer >= turn_timer_max) {
+    			turn_timer = 0;
+
+    			update_entities();
+    		}
     	}
 
     	render();

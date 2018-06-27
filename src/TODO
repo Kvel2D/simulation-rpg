@@ -1,22 +1,19 @@
 
 
-process table to determine value
-
-sort by value and distance
-
-
-
-each entity type has a table for what they get from other entities
-entities can obtain resources, resources convert to value depending on how much the entity needs those resources
-entities can also obtain value even if they dont get any resources, if they dislike them by design or if they grew to dislike them
-
-
-
-change decisionmaking to come from analysis of all nearby objects, sorting by percieved benefit of executing, for food the benefit is the energy worth of food minus some weighted distance to the food
+test multiple mob factions interacting
+herbivores vs omnivores too
+add some more stat variation
 
 
 
 ------------------------------------------
-increase resolution to make text smaller, scale up tiles
-remove destination for gnome's goals, wasn't used anyway
-add value tables
+
+change decisionmaking to come from analysis of all nearby objects, sorting by percieved benefit of executing, for food the benefit is the energy worth of food minus some weighted distance to the food
+process table to determine value
+sort by value and distance
+select goal
+rename gnomes to mobs
+track mob info by clicking
+fix resources spawning on top of each other still
+fix mobs go to weird far away resources for some reason
+make mobs do goals based on their motivation stat, chance of goal = motivation
