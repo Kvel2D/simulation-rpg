@@ -16,7 +16,6 @@ enum ResourceType {
 
 enum MobState {
 	MobState_None;
-	MobState_Dead;
 	MobState_Idle;
 	MobState_Goal;
 }

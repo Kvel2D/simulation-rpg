@@ -175,7 +175,7 @@ class GUI {
 		if (editable_cache.hash == hash) {
 			if (editable_cache.editing) {
 				if (html5_input(editable_x, editable_y, text, button_text_on_color, button_text_on_color)) {
-					var input = Std.parseInt(html5_get_input());
+					var input = Std.parseFloat(html5_get_input());
 					set_function(input);
 					editable_cache.editing = false;
 					editable_cache.hash = "";
@@ -225,6 +225,8 @@ class GUI {
 				input += '7';
 			} else if (Input.just_pressed(Key.EIGHT)) {
 				input += '8';
+			} else if (Input.just_pressed(Key.NINE)) {
+				input += '9';
 			} else if (Input.just_pressed(Key.NINE)) {
 				input += '9';
 			}

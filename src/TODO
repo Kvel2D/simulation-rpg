@@ -1,19 +1,18 @@
 
+make collision between mobs at least or even try a_star again??
 
+make idling be more worth than very far away goals
 test multiple mob factions interacting
-herbivores vs omnivores too
-add some more stat variation
 
+herbivores vs omnivores too
 
 
 ------------------------------------------
 
-change decisionmaking to come from analysis of all nearby objects, sorting by percieved benefit of executing, for food the benefit is the energy worth of food minus some weighted distance to the food
-process table to determine value
-sort by value and distance
-select goal
-rename gnomes to mobs
-track mob info by clicking
-fix resources spawning on top of each other still
-fix mobs go to weird far away resources for some reason
-make mobs do goals based on their motivation stat, chance of goal = motivation
+add bananas/tree lists, change respawning to choose randomly from those lists
+make resource respawn rate exponential relative to resource count
+disable homes for now
+reproduction - exponential as well, can change upper cap if stabilized at or below
+track timers for below 50% of max, if below 50% of max for a long time, reduce max cap
+add reproduction growth modifier
+

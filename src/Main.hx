@@ -18,10 +18,13 @@ class Main {
 	static inline var view_width = 31;
 	static inline var view_height = 31;
 
-	static inline var bananas_count_min = 20;
-	static inline var tree_count_min = 20;
+	static inline var bananas_respawn_rate = 300; // this is also the maximum amount of resources
+	static inline var tree_respawn_rate = 300;
 
 	var paused = false;
+
+	var bananas_list = new Array<Resource>();
+	var tree_list = new Array<Resource>();
 
 
 	var turn_timer = 0;
@@ -36,6 +39,24 @@ class Main {
 
 	var tracked_entity: Dynamic = null;
 
+	var mob_lists = new Map<String, Array<Mob>>();
+	var population_caps: Map<String, Int> = [
+	"gnome" => 50,
+	"dragon" => 70,
+	];
+	var population_growth_chances: Map<String, Int> = [
+	"gnome" => 50,
+	"dragon" => 100,
+	];
+	var cap_reduce_timers = new Map<String, Int>();
+	var cap_reduce_timers_max = 100;
+
+	var mob_tiles: Map<String, Int> = [
+	"gnome" => Tiles.Gnome,
+	"dragon" => Tiles.Dragon,
+	];
+
+
 	function new() {
 		Gfx.resize_screen(screen_width, screen_height);
 		Text.setfont("pixelFJ8", 16);
@@ -46,6 +67,11 @@ class Main {
 		#else 
 		Gfx.resize_screen(screen_width, screen_height, 1);
 		#end
+
+
+		for (key in population_caps.keys()) {
+			cap_reduce_timers[key] = 0;
+		}
 
 
 		for (x in 0...map_width) {
@@ -73,19 +99,32 @@ class Main {
 		add_to_free_map(player.x, player.y);
 
 
-		make_mob(102, 102);
-		make_mob(98, 106);
-
-
-		make_bananas(10, 10);
-		if (free_map[10][10]) {
-			trace("huh");
-		}
 
 		for (i in 0...10) {
 			var position = {
-				x: 110 + Random.int(-10, 10), 
-				y: 110 + Random.int(-10, 10)
+				x: 100 + Random.int(-20, 20), 
+				y: 100 + Random.int(-20, 20)
+			};
+			if (free_map[position.x][position.y]) {
+				make_gnome(position.x, position.y);
+			}
+		}
+
+		for (i in 0...20) {
+			var position = {
+				x: 130 + Random.int(-20, 20), 
+				y: 130 + Random.int(-20, 20)
+			};
+			if (free_map[position.x][position.y]) {
+				make_dragon(position.x, position.y);
+			}
+		}
+
+
+		for (i in 0...10) {
+			var position = {
+				x: 100 + Random.int(-20, 20), 
+				y: 100 + Random.int(-20, 20)
 			};
 			if (free_map[position.x][position.y]) {
 				make_bananas(position.x, position.y);
@@ -93,8 +132,8 @@ class Main {
 		}
 		for (i in 0...10) {
 			var position = {
-				x: 110 + Random.int(-10, 10), 
-				y: 110 + Random.int(-10, 10)
+				x: 100 + Random.int(-20, 20), 
+				y: 100 + Random.int(-20, 20)
 			};
 			if (free_map[position.x][position.y]) {
 				make_tree(position.x, position.y);
@@ -113,16 +152,40 @@ class Main {
 		}
 	}
 
-	function make_mob(x, y) {
-		var mob = new Mob();
-		mob.x = x;
-		mob.y = y;
-		mob.home_x = x - 10;
-		mob.home_y = y - 10;
-		mob.state = MobState_Idle;
+	function add_mob_to_lists(mob: Mob) {
+		if (!mob_lists.exists(mob.name)) {
+			mob_lists[mob.name] = new Array<Mob>();
+		}
+		mob_lists[mob.name].push(mob);
+	}
+
+	function remove_mob_from_lists(mob: Mob) {
+		if (!mob_lists.exists(mob.name)) {
+			mob_lists[mob.name] = new Array<Mob>();
+		}
+		mob_lists[mob.name].remove(mob);
+	}
+
+	function make_gnome(x, y) {
+		var gnome = new Mob();
+		gnome.x = x;
+		gnome.y = y;
+		gnome.state = MobState_Idle;
 		add_to_free_map(x, y);
-		mob.name = "mob";
-		mob.motivation = 20;
+		gnome.name = "gnome";
+		gnome.motivation = 20;
+		add_mob_to_lists(gnome);
+	}
+
+	function make_dragon(x, y) {
+		var dragon = new Mob();
+		dragon.x = x;
+		dragon.y = y;
+		dragon.state = MobState_Idle;
+		add_to_free_map(x, y);
+		dragon.name = "dragon";
+		dragon.motivation = 20;
+		add_mob_to_lists(dragon);
 	}
 
 	function make_bananas(x, y) {
@@ -132,6 +195,8 @@ class Main {
 		bananas.resource_type = ResourceType_Bananas;
 		add_to_free_map(x, y);
 		bananas.name = "bananas";
+
+		bananas_list.push(bananas);
 	}
 
 	function make_tree(x, y) {
@@ -141,6 +206,8 @@ class Main {
 		tree.resource_type = ResourceType_Tree;
 		add_to_free_map(x, y);
 		tree.name = "tree";
+
+		tree_list.push(tree);
 	}
 
 	// in terms of cells
@@ -201,6 +268,15 @@ class Main {
 		}
 	}	
 
+	function random_neighbor(x, y): IntVector2 {
+		var move = random_move(x, y);
+		if (move != null) {
+			return {x: x + move.x, y: y + move.y} 
+		} else {
+			return null;
+		}
+	}
+
 	function random_neighbor_space(x, y): IntVector2 {
 		var move = random_move_to_space(x, y);
 		if (move != null) {
@@ -244,17 +320,17 @@ class Main {
 
 	function mob_idle(mob: Mob) {
 		// When idle, go home and move around nearby
-		var distance_to_home = Math.dst(mob.x, mob.y, mob.home_x, mob.home_y);
-		if (distance_to_home < mob.leash_range) {
-			// Move around 
-			var neighbor = random_neighbor_space(mob.x, mob.y);
-			if (neighbor != null) {
-				move_entity_to(mob, neighbor.x, neighbor.y);
-			}
-		} else {
-			// Go home
-			move_entity_to(mob, mob.home_x, mob.home_y);
+		// var distance_to_home = Math.dst(mob.x, mob.y, mob.home_x, mob.home_y);
+		// if (distance_to_home < mob.leash_range) {
+		// 	// Move around 
+		var neighbor = random_neighbor_space(mob.x, mob.y);
+		if (neighbor != null) {
+			move_entity_to(mob, neighbor.x, neighbor.y);
 		}
+		// } else {
+		// 	// Go home
+		// 	move_entity_to(mob, mob.home_x, mob.home_y);
+		// }
 
 
 		var starving = ((mob.energy / mob.energy_max) < 0.25);
@@ -362,15 +438,20 @@ class Main {
 
 				if (mob.goal.hp <= 0) {
 					mob.goal.delete();
-
-					switch (mob.goal.resource_type) {
-						case ResourceType_Tree: {
-							mob.wood += 10;
+					if (mob.goal.entity_type == EntityType_Mob) {
+						remove_mob_from_lists(mob.goal);
+					} else if (mob.goal.entity_type == EntityType_Resource) {
+						switch (mob.goal.resource_type) {
+							case ResourceType_Tree: {
+								mob.wood += 10;
+								tree_list.remove(mob.goal);
+							}
+							case ResourceType_Bananas: {
+								mob.energy += 40;
+								bananas_list.remove(mob.goal);
+							}
+							default:
 						}
-						case ResourceType_Bananas: {
-							mob.energy += 40;
-						}
-						default:
 					}
 				}
 			}
@@ -383,46 +464,68 @@ class Main {
 	}
 
 	function update_entities() {
-		// Respawn resources when they get low, respawn near resources of same type
-		// NOTE: optimize if needed by tracking counts on addition/removal
-		var bananas_count = 0;
-		var tree_count = 0;
-		for (resource in Entity.get(Resource)) {
-			switch (resource.resource_type) {
-				case ResourceType_Bananas: bananas_count++;
-				case ResourceType_Tree: tree_count++;
-				default:
-			}
-		}
-
-		var k = 0;
-		var all_resources = Entity.get(Resource);
-		if (bananas_count < bananas_count_min) {
-			while (true) {
-				k = Random.int(0, all_resources.length - 1);
-				if (all_resources[k].resource_type == ResourceType_Bananas) {
-					break;
-				}
-			}
-
-			var space = random_neighbor_space(all_resources[k].x, all_resources[k].y);
+		// Respawn resources
+		var bananas_respawn = Math.floor(bananas_respawn_rate / bananas_list.length);
+		for (i in 0...bananas_respawn) {
+			var random_bananas = bananas_list[Random.int(0, bananas_list.length - 1)];
+			var space = random_neighbor_space(random_bananas.x, random_bananas.y);
 			if (space != null) {
 				make_bananas(space.x, space.y);
-			}
+			}			
 		}
-
-		if (tree_count < tree_count_min) {
-			var all_resources = Entity.get(Resource);
-			while (true) {
-				k = Random.int(0, all_resources.length - 1);
-				if (all_resources[k].resource_type == ResourceType_Tree) {
-					break;
-				}	
-			}
-
-			var space = random_neighbor_space(all_resources[k].x, all_resources[k].y);
+		var tree_respawn = Math.floor(tree_respawn_rate / tree_list.length);
+		for (i in 0...tree_respawn) {
+			var random_tree = tree_list[Random.int(0, tree_list.length - 1)];
+			var space = random_neighbor_space(random_tree.x, random_tree.y);
 			if (space != null) {
 				make_tree(space.x, space.y);
+			}			
+		}
+
+
+		// Update population caps
+		// if population is below 50% of cap for a long time, the cap is reduced by 25%
+		for (key in population_caps.keys()) {
+			var current_population = mob_lists[key].length;
+			var cap = population_caps[key];
+
+			if (current_population / cap < 0.5) {
+				cap_reduce_timers[key]++;
+				if (cap_reduce_timers[key] > cap_reduce_timers_max) {
+					population_caps[key] = Math.floor(0.75 * population_caps[key]);
+					cap_reduce_timers[key] = 0;
+				} 
+			} else {
+				// went above 50%, reset reduce timer
+				if (cap_reduce_timers[key] > 0) {
+					cap_reduce_timers[key] = 0;
+				}
+			}
+		}
+		
+		// Respawn mobs
+		for (key in population_caps.keys()) {
+			trace(key);
+			var growth_chance = population_growth_chances[key];
+
+			if (Random.chance(growth_chance)) {
+				var mob_list = mob_lists[key];
+				var current_population = mob_list.length;
+				var cap = population_caps[key];
+
+				var respawn_amount = Math.floor(cap / current_population);
+				trace(respawn_amount);
+				for (i in 0...respawn_amount) {
+					var random_mob = mob_list[Random.int(0, mob_list.length - 1)];
+					var space = random_neighbor(random_mob.x, random_mob.y);
+					if (space != null) {
+						switch (key) {
+							case "gnome": make_gnome(space.x, space.y);
+							case "dragon": make_dragon(space.x, space.y);
+							default:
+						}
+					}	
+				}
 			}
 		}
 
@@ -446,11 +549,11 @@ class Main {
     		}
 
     		if (mob.hp <= 0) {
-    			mob.state = MobState_Dead;
+    			mob.delete();
+    			remove_mob_from_lists(mob);
     		}
 
     		switch (mob.state) {
-    			case MobState_Dead: 
     			case MobState_Idle: mob_idle(mob);
     			case MobState_Goal: mob_goal(mob);
     			default:
@@ -500,11 +603,7 @@ class Main {
     	// }
 
     	for (mob in Entity.get(Mob)) {
-    		if (mob.state == MobState_Dead) {
-    			draw_entity(mob, Tiles.MobDead);
-    		} else {
-    			draw_entity(mob, Tiles.Mob);
-    		}
+    		draw_entity(mob, mob_tiles[mob.name]);
     	}
 
     	for (resource in Entity.get(Resource)) {
@@ -537,6 +636,8 @@ class Main {
     				display_line('state=${tracked_entity.state}');
     				display_line('hp=${tracked_entity.hp}/${tracked_entity.hp_max}');
     				display_line('energy=${tracked_entity.energy}/${tracked_entity.energy_max}');
+    				display_line('population=${mob_lists[tracked_entity.name].length}');
+    				display_line('name=${tracked_entity.name}');
     				if (tracked_entity.goal != null) {
     					display_line('goal x=${tracked_entity.goal.x} goal y=${tracked_entity.goal.y}');
     				}
@@ -548,6 +649,9 @@ class Main {
     			default:
     		}
     	}
+
+
+    	Text.display(view_width * tilesize * scale + 10, 700, 'x=${player.x} y=${player.y}');
     }
 
     function update() {
