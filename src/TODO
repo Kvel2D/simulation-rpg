@@ -1,18 +1,19 @@
+think about the prioritizing by distance thing, might prune results too much
 
-make collision between mobs at least or even try a_star again??
+think about stuff for mobs to do other than eating
 
-make idling be more worth than very far away goals
-test multiple mob factions interacting
+should add monster mobs to kill ala dota creeps, gnomes can decide to go on an adventure to kill them
 
-herbivores vs omnivores too
+implement mobs interacting with entities non-destructively, for example conversations that boost or decrease mutual disposition or looking at things etc
+
+maybe make entity hp be a resource in the values map as well
+
+maybe make a map for mobs of values like hp, energy, etc
 
 
 ------------------------------------------
 
-add bananas/tree lists, change respawning to choose randomly from those lists
-make resource respawn rate exponential relative to resource count
-disable homes for now
-reproduction - exponential as well, can change upper cap if stabilized at or below
-track timers for below 50% of max, if below 50% of max for a long time, reduce max cap
-add reproduction growth modifier
-
+tone down reproduction for now
+remove error checking for non-existent mob lists
+add mob personal names
+add randomization to goal selection, now all goals have a chance to be selected, higher score goals are selected most often

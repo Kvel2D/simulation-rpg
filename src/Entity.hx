@@ -98,6 +98,7 @@ class Mob extends Entity {
 	var wood = 0;
 
 	var name = "";
+	var personal_name = "";
 }
 
 

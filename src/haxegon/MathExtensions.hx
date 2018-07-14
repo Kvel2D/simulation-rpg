@@ -340,7 +340,7 @@ class MathExtensions {
     
     static function outer_product(math: Class<Math> = null, v1: Vector<Float>, v2: Vector<Float>, out: Vector<Vector<Float>> = null): Vector<Vector<Float>> {
         if (out == null) {
-            out = Data.float_2dvector(v1.length, v2.length);
+            out = Data.float_2d_vector(v1.length, v2.length);
         }
         for (i in 0...out.length) {
             for (j in 0...out[i].length) {
@@ -352,7 +352,7 @@ class MathExtensions {
 
     static function mat_transpose(math: Class<Math> = null, m: Vector<Vector<Float>>, out: Vector<Vector<Float>> = null): Vector<Vector<Float>> {
         if (out == null) {
-            out = Data.float_2dvector(m[0].length, m.length);
+            out = Data.float_2d_vector(m[0].length, m.length);
         }
         for (i in 0...out.length) {
             for (j in 0...out[i].length) {
@@ -364,7 +364,7 @@ class MathExtensions {
 
     static function mat_add(math: Class<Math> = null, m1: Vector<Vector<Float>>, m2: Vector<Vector<Float>>, out: Vector<Vector<Float>> = null): Vector<Vector<Float>> {
         if (out == null) {
-            out = Data.float_2dvector(m1.length, m1[0].length);
+            out = Data.float_2d_vector(m1.length, m1[0].length);
         }
         for (i in 0...out.length) {
             for (j in 0...out[i].length) {
@@ -376,7 +376,7 @@ class MathExtensions {
 
     static function mat_dot(math: Class<Math> = null, m1: Vector<Vector<Float>>, m2: Vector<Vector<Float>>, out: Vector<Vector<Float>> = null): Vector<Vector<Float>> {
         if (out == null) {
-            out = Data.float_2dvector(m1.length, m2[0].length);
+            out = Data.float_2d_vector(m1.length, m2[0].length);
         }
         var sum: Float;
         for (i in 0...m1.length) {
@@ -393,7 +393,7 @@ class MathExtensions {
 
     static function mat_scalar_mult(math: Class<Math> = null, m: Vector<Vector<Float>>, s: Float, out: Vector<Vector<Float>> = null): Vector<Vector<Float>> {
         if (out == null) {
-            out = Data.float_2dvector(m.length, m[0].length);
+            out = Data.float_2d_vector(m.length, m[0].length);
         }
         for (i in 0...m.length) {
             for (j in 0...m[i].length) {
@@ -405,7 +405,7 @@ class MathExtensions {
 
     static function hadamard_product(math: Class<Math> = null, m1: Vector<Vector<Float>>, m2: Vector<Vector<Float>>, out: Vector<Vector<Float>> = null): Vector<Vector<Float>> {
         if (out == null) {
-            out = Data.float_2dvector(m1.length, m2[0].length);
+            out = Data.float_2d_vector(m1.length, m2[0].length);
         }
         for (i in 0...m1.length) {
             for (j in 0...m2[0].length) {
@@ -417,7 +417,7 @@ class MathExtensions {
 
     static function kronecker_product(math: Class<Math> = null, v1: Vector<Float>, v2: Vector<Float>, out: Vector<Vector<Float>> = null): Vector<Vector<Float>> {
         if (out == null) {
-            out = Data.float_2dvector(v1.length * v2.length, v1.length * v2.length);
+            out = Data.float_2d_vector(v1.length * v2.length, v1.length * v2.length);
         }
         for (i in 0...v1.length) {
             for (j in 0...v1.length) {
@@ -429,7 +429,7 @@ class MathExtensions {
 
     static function mat_concat_horizontal(math: Class<Math> = null, m1: Vector<Vector<Float>>, m2: Vector<Vector<Float>>, out: Vector<Vector<Float>> = null): Vector<Vector<Float>> {
         if (out == null) {
-            out = Data.float_2dvector(m1.length, m1[0].length + m2[0].length);
+            out = Data.float_2d_vector(m1.length, m1[0].length + m2[0].length);
         }
         var m1Width = m1[0].length;
         for (i in 0...out.length) {

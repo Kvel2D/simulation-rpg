@@ -13,8 +13,8 @@ class Main {
 	static inline var screen_height = 1000;
 	static inline var scale = 4;
 	static inline var tilesize = 8;
-	static inline var map_width = 200;
-	static inline var map_height = 200;
+	static inline var map_width = 100;
+	static inline var map_height = 100;
 	static inline var view_width = 31;
 	static inline var view_height = 31;
 
@@ -31,22 +31,25 @@ class Main {
 	static inline var turn_timer_max  = 10;
 
 
-	var tiles = Data.int_2dvector(map_width, map_height);
-	var free_map = Data.bool_2dvector(map_width, map_height);
-	var entity_count = Data.int_2dvector(map_width, map_height);
+	var tiles = Data.int_2d_vector(map_width, map_height);
+	var free_map = Data.bool_2d_vector(map_width, map_height);
+	var entity_count = Data.int_2d_vector(map_width, map_height);
 
 	var player: Player;
 
 	var tracked_entity: Dynamic = null;
 
-	var mob_lists = new Map<String, Array<Mob>>();
+	var mob_lists: Map<String, Array<Mob>> = [
+	"gnome" => new Array<Mob>(),
+	"dragon" => new Array<Mob>(),
+	];
 	var population_caps: Map<String, Int> = [
 	"gnome" => 50,
 	"dragon" => 70,
 	];
 	var population_growth_chances: Map<String, Int> = [
-	"gnome" => 50,
-	"dragon" => 100,
+	"gnome" => 0,
+	"dragon" => 0,
 	];
 	var cap_reduce_timers = new Map<String, Int>();
 	var cap_reduce_timers_max = 100;
@@ -94,37 +97,37 @@ class Main {
 
 
 		player = new Player();
-		player.x = 100;
-		player.y = 100;
+		player.x = 50;
+		player.y = 50;
 		add_to_free_map(player.x, player.y);
 
 
 
 		for (i in 0...10) {
 			var position = {
-				x: 100 + Random.int(-20, 20), 
-				y: 100 + Random.int(-20, 20)
+				x: 50 + Random.int(-20, 20), 
+				y: 50 + Random.int(-20, 20)
 			};
 			if (free_map[position.x][position.y]) {
 				make_gnome(position.x, position.y);
 			}
 		}
 
-		for (i in 0...20) {
-			var position = {
-				x: 130 + Random.int(-20, 20), 
-				y: 130 + Random.int(-20, 20)
-			};
-			if (free_map[position.x][position.y]) {
-				make_dragon(position.x, position.y);
-			}
-		}
+		// for (i in 0...20) {
+		// 	var position = {
+		// 		x: 130 + Random.int(-20, 20), 
+		// 		y: 130 + Random.int(-20, 20)
+		// 	};
+		// 	if (free_map[position.x][position.y]) {
+		// 		make_dragon(position.x, position.y);
+		// 	}
+		// }
 
 
 		for (i in 0...10) {
 			var position = {
-				x: 100 + Random.int(-20, 20), 
-				y: 100 + Random.int(-20, 20)
+				x: 50 + Random.int(-20, 20), 
+				y: 50 + Random.int(-20, 20)
 			};
 			if (free_map[position.x][position.y]) {
 				make_bananas(position.x, position.y);
@@ -132,13 +135,20 @@ class Main {
 		}
 		for (i in 0...10) {
 			var position = {
-				x: 100 + Random.int(-20, 20), 
-				y: 100 + Random.int(-20, 20)
+				x: 50 + Random.int(-20, 20), 
+				y: 50 + Random.int(-20, 20)
 			};
 			if (free_map[position.x][position.y]) {
 				make_tree(position.x, position.y);
 			}
 		}
+
+
+		var test = new Vector<Vector<Int>>(3);
+		test[0] = new Vector<Int>(4);
+		test[1] = new Vector<Int>(4);
+		test[2] = new Vector<Int>(4);
+		trace(test);
 	}
 
 	function add_to_free_map(x, y) {
@@ -153,17 +163,51 @@ class Main {
 	}
 
 	function add_mob_to_lists(mob: Mob) {
-		if (!mob_lists.exists(mob.name)) {
-			mob_lists[mob.name] = new Array<Mob>();
-		}
 		mob_lists[mob.name].push(mob);
 	}
 
 	function remove_mob_from_lists(mob: Mob) {
-		if (!mob_lists.exists(mob.name)) {
-			mob_lists[mob.name] = new Array<Mob>();
-		}
 		mob_lists[mob.name].remove(mob);
+	}
+
+
+	// TODO: create lists of next chars for each vowel/pair to make names
+	// more coherent
+	var vowels = ['a', 'e', 'i', 'o', 'u'];
+	var consonants = ['y', 'q', 'w', 'r', 't', 'p', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l', 'z', 'x', 'c', 'v', 'b', 'n', 'm'];
+	var generated_names = [""];
+	function generate_name(): String {
+
+		function random_consonant(): String {
+			return consonants[Random.int(0, consonants.length - 1)];
+		}
+		function random_vowel(): String {
+			return vowels[Random.int(0, vowels.length - 1)];
+		}
+
+		var name = "";
+		while (generated_names.indexOf(name) != -1) {
+			var length = Random.int(2, 3);
+			for (i in 0...length) {
+				var consonant_first = Random.bool();
+				if (consonant_first) {
+					name += random_consonant();
+					name += random_vowel();
+				} else {
+					name += random_vowel();
+					name += random_consonant();
+				}
+
+				// Capitalize first letter
+				if (i == 0) {
+					name = name.charAt(0).toUpperCase() + name.charAt(1);
+				}
+			}
+		}
+
+		generated_names.push(name);
+
+		return name;
 	}
 
 	function make_gnome(x, y) {
@@ -173,6 +217,7 @@ class Main {
 		gnome.state = MobState_Idle;
 		add_to_free_map(x, y);
 		gnome.name = "gnome";
+		gnome.personal_name = generate_name();
 		gnome.motivation = 20;
 		add_mob_to_lists(gnome);
 	}
@@ -357,7 +402,7 @@ class Main {
 				// if nothing is gained, goal is ignored
 				var distance = Std.int(Math.dst(mob.x, mob.y, entity.x, entity.y));
 
-				// prioritize closer goals(even if gain is greater)
+				// prioritize closer goals
 				if (distance > best_distance) {
 					return;
 				} else {
@@ -390,14 +435,38 @@ class Main {
 				}
 			}
 
-			for (resource in Entity.get(Resource)) {	
-				process_for_value(resource);
-			}
-			for (mob in Entity.get(Mob)) {
-				process_for_value(mob);
+			var resources = Entity.get(Resource);
+			var mobs = Entity.get(Mob);
+			var goal_entities = resources.concat(mobs);
+
+			Random.shuffle(goal_entities);
+
+			// sort, stopping at some random number of examined goals
+			// stopping point is from 0 to total number of goals
+			// distribution is such that stopping point is more often
+			// closer to total number of goals
+			// 
+			// all of this is to make it that most of the time
+			// the goal with top score is picked
+			// but sometimes other goals are picked as well
+			// 
+			// it's possible that the worst goal will be picked
+			// but this has a very low chance of occuring
+			var stopping_point = Random.float(0, 1);
+			stopping_point = stopping_point * stopping_point;
+			stopping_point = goal_entities.length * (1 - stopping_point);
+
+			var i = 0;
+			for (entity in goal_entities) {	
+				process_for_value(entity);
+
+				i++;
+				if (i > stopping_point) {
+					break;
+				}
 			}
 
-			// Don't goal on yourself
+			// Don't pick yourself as goal
 			if (best_goal == mob) {
 				best_goal = null;
 			}
@@ -504,8 +573,8 @@ class Main {
 		}
 		
 		// Respawn mobs
+		// Update population caps
 		for (key in population_caps.keys()) {
-			trace(key);
 			var growth_chance = population_growth_chances[key];
 
 			if (Random.chance(growth_chance)) {
@@ -514,7 +583,6 @@ class Main {
 				var cap = population_caps[key];
 
 				var respawn_amount = Math.floor(cap / current_population);
-				trace(respawn_amount);
 				for (i in 0...respawn_amount) {
 					var random_mob = mob_list[Random.int(0, mob_list.length - 1)];
 					var space = random_neighbor(random_mob.x, random_mob.y);
@@ -528,10 +596,7 @@ class Main {
 				}
 			}
 		}
-
-
-
-
+		// Respawn
 		for (mob in Entity.get(Mob)) {
 
     		// Mobs constantly consume energy
@@ -618,7 +683,7 @@ class Main {
 
 
 
-
+    	// Display tracked entity info
     	if (tracked_entity != null) {
     		var text_y = 0;
     		function display_line(text) {
@@ -638,6 +703,7 @@ class Main {
     				display_line('energy=${tracked_entity.energy}/${tracked_entity.energy_max}');
     				display_line('population=${mob_lists[tracked_entity.name].length}');
     				display_line('name=${tracked_entity.name}');
+    				display_line('personal name=${tracked_entity.personal_name}');
     				if (tracked_entity.goal != null) {
     					display_line('goal x=${tracked_entity.goal.x} goal y=${tracked_entity.goal.y}');
     				}
@@ -672,7 +738,13 @@ class Main {
     			if (Math.abs(mouse_difference_y) > tilesize * scale/ 2) {
     				player.dy = Math.sign(mouse_difference_y);
     			}
-    			player.already_moved = true;
+
+    			if (!out_of_bounds(player.x + player.dx, player.y + player.dy)) { 
+    				player.already_moved = true;
+    			} else {
+    				player.dx = 0;
+    				player.dy = 0;
+    			}
     		}
     	}
 

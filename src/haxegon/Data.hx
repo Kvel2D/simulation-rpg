@@ -18,25 +18,6 @@ class Data {
     }
 
     @:generic
-    public static function print_2darray<T>(array: Array<Array<T>>) {
-        trace('[');
-        for (i in 0...array.length) {
-            print_array(array[i]);
-        }
-        trace(']');
-    }
-
-    @:generic
-    public static function print_array<T>(array: Array<T>) {
-        var line = '[';
-        for (i in 0...array.length) {
-            line += ' ${array[i]}';
-        }
-        line += ']';
-        trace(line);
-    }
-
-    @:generic
     public static function print_2dvector<T>(vector: Vector<Vector<T>>) {
         trace('[');
         for (i in 0...vector.length) {
@@ -55,37 +36,29 @@ class Data {
         trace(line);
     }
 
-    public static function int_1dvector(length: Int): Vector<Int> {
-        var vector = new Vector(length);
-        for (i in 0...length) {
-            vector[i] = 0;
-        }
-        return vector;
-    }
-
-    public static function bool_2dvector(width: Int, height: Int, default_value: Bool = false): Vector<Vector<Bool>> {
+    public static function bool_2d_vector(width: Int, height: Int): Vector<Vector<Bool>> {
         var vector: Vector<Vector<Bool>> = new Vector(width);
         for (i in 0...width) {
             vector[i] = new Vector(height);
             for (j in 0...height) {
-                vector[i][j] = default_value;
+                vector[i][j] = false;
             }
         }
         return vector;
     }
 
-    public static function int_2dvector(width: Int, height: Int, default_value: Int = 0): Vector<Vector<Int>> {
+    public static function int_2d_vector(width: Int, height: Int): Vector<Vector<Int>> {
         var vector: Vector<Vector<Int>> = new Vector(width);
         for (i in 0...width) {
             vector[i] = new Vector(height);
             for (j in 0...height) {
-                vector[i][j] = default_value;
+                vector[i][j] = 0;
             }
         }
         return vector;
     }
 
-    public static function int_3dvector(width: Int, height: Int, depth: Int): Vector<Vector<Vector<Int>>> {
+    public static function int_3d_vector(width: Int, height: Int, depth: Int): Vector<Vector<Vector<Int>>> {
         var vector: Vector<Vector<Vector<Int>>> = new Vector(width);
         for (i in 0...width) {
             vector[i] = new Vector(height);
@@ -96,7 +69,7 @@ class Data {
         return vector;
     }
 
-    public static function float_2dvector(width: Int, height: Int): Vector<Vector<Float>> {
+    public static function float_2d_vector(width: Int, height: Int): Vector<Vector<Float>> {
         var vector: Vector<Vector<Float>> = new Vector(width);
         for (i in 0...width) {
             vector[i] = new Vector(height);
@@ -104,7 +77,7 @@ class Data {
         return vector;
     }
 
-    public static function float_3dvector(width: Int, height: Int, depth: Int): Vector<Vector<Vector<Float>>> {
+    public static function float_3d_vector(width: Int, height: Int, depth: Int): Vector<Vector<Vector<Float>>> {
         var vector: Vector<Vector<Vector<Float>>> = new Vector(width);
         for (i in 0...width) {
             vector[i] = new Vector(height);
@@ -126,7 +99,7 @@ class Data {
     }
 
     @:generic
-    public static function loadcsv<T>(csvfile: String, delimiter: String = ","): Array<T> {
+    public static function load_csv<T>(csvfile: String, delimiter: String = ","): Array<T> {
         tempstring = Assets.getText("data/text/" + csvfile + ".csv");
 
         //figure out width
@@ -161,7 +134,7 @@ class Data {
     }
 
     @:generic
-    public static function loadcsv_2d<T>(csvfile: String, delimiter: String = ","): Array<Array<T>> {
+    public static function load_csv_2d<T>(csvfile: String, delimiter: String = ","): Array<Array<T>> {
         tempstring = Assets.getText("data/text/" + csvfile + ".csv");
 
         //figure out width
