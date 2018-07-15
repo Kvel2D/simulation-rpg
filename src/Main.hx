@@ -39,24 +39,40 @@ class Main {
 
 	var tracked_entity: Dynamic = null;
 
-	var mob_lists: Map<String, Array<Mob>> = [
-	"gnome" => new Array<Mob>(),
-	"dragon" => new Array<Mob>(),
+
+	var mob_names = [
+	"gnome",
+	"dragon",
 	];
-	var population_caps: Map<String, Int> = [
+	var mob_lists = new Map<String, Array<Mob>>();
+	var mob_population_caps: Map<String, Int> = [
 	"gnome" => 50,
 	"dragon" => 70,
 	];
-	var population_growth_chances: Map<String, Int> = [
+	var mob_growth_chances: Map<String, Int> = [
 	"gnome" => 0,
 	"dragon" => 0,
 	];
 	var cap_reduce_timers = new Map<String, Int>();
-	var cap_reduce_timers_max = 100;
-
+	static inline var cap_reduce_timers_max = 100;
 	var mob_tiles: Map<String, Int> = [
 	"gnome" => Tiles.Gnome,
 	"dragon" => Tiles.Dragon,
+	];
+
+
+	var resource_names = [
+	"bananas",
+	"tree",
+	];
+	var resource_lists = new Map<String, Array<Resource>>();
+	var resource_population_caps: Map<String, Int> = [
+	"bananas" => 300,
+	"tree" => 300,
+	];
+	var resource_tiles: Map<String, Int> = [
+	"bananas" => Tiles.Bananas,
+	"tree" => Tiles.Tree,
 	];
 
 
@@ -72,10 +88,42 @@ class Main {
 		#end
 
 
-		for (key in population_caps.keys()) {
-			cap_reduce_timers[key] = 0;
+		// Initialize mob variables
+		for (name in mob_names) {
+			mob_lists[name] = new Array<Mob>();
+
+			if (!mob_population_caps.exists(name)) {
+				trace('Population cap undefined for \"${name}\"');
+				mob_population_caps[name] = 1000;
+			}
+
+			if (!mob_growth_chances.exists(name)) {
+				trace('Growth chance undefined for \"${name}\"');
+				mob_growth_chances[name] = 0;
+			}
+
+			cap_reduce_timers[name] = 0;
+
+			if (!mob_tiles.exists(name)) {
+				trace('Tile undefined for \"${name}\"');
+				mob_tiles[name] = Tiles.None;
+			}
 		}
 
+		// Initialize resource variables
+		for (name in resource_names) {
+			resource_lists[name] = new Array<Resource>();
+
+			if (!resource_population_caps.exists(name)) {
+				trace('Population cap undefined for \"${name}\"');
+				mob_population_caps[name] = 1000;
+			}
+
+			if (!resource_tiles.exists(name)) {
+				trace('Tile undefined for \"${name}\"');
+				resource_tiles[name] = Tiles.None;
+			}
+		}
 
 		for (x in 0...map_width) {
 			for (y in 0...map_height) {
@@ -142,13 +190,6 @@ class Main {
 				make_tree(position.x, position.y);
 			}
 		}
-
-
-		var test = new Vector<Vector<Int>>(3);
-		test[0] = new Vector<Int>(4);
-		test[1] = new Vector<Int>(4);
-		test[2] = new Vector<Int>(4);
-		trace(test);
 	}
 
 	function add_to_free_map(x, y) {
@@ -377,15 +418,30 @@ class Main {
 		// 	move_entity_to(mob, mob.home_x, mob.home_y);
 		// }
 
+		// If mob is low on energy, food is more valuable
+		var energy_weight = 0;
+		var energy_amount = mob.energy / mob.energy_max;
+		if (energy_amount < 0.25) {
+			energy_weight = 100;
+		} else if (energy_amount < 0.75) {
+			energy_weight = 10;
+		} else if (energy_amount < 0.99) {
+			energy_weight = 1; 
+		} else {
+			energy_weight = 0;
+		}
 
-		var starving = ((mob.energy / mob.energy_max) < 0.25);
+		// Wood is valuable only when mob has none
+		var wood_weight = 0;
+		if (mob.wood == 0) {
+			wood_weight = 1;
+		}
+
+		var dislike_weight = 1;
 
 		// do goal if motivated
-		// always do goal if starving
-		if (starving || Random.chance(mob.motivation)) {
+		if (Random.chance(mob.motivation)) {
 			// Determine if there's a goal to do
-			var need_energy = ((mob.energy / mob.energy_max) < 0.75);
-			var need_wood = (mob.wood == 0);
 
 			var best_value = -100000000;
 			var best_distance = 100000000;
@@ -403,6 +459,7 @@ class Main {
 				var distance = Std.int(Math.dst(mob.x, mob.y, entity.x, entity.y));
 
 				// prioritize closer goals
+				// NOTE: this might be pruning goals too hard
 				if (distance > best_distance) {
 					return;
 				} else {
@@ -411,18 +468,13 @@ class Main {
 
 					var gain = 0;
 					if (values.exists("energy")) {
-						if (starving) {
-							// prioritize energy above all if starving
-							gain += 100 * values["energy"];
-						} else if (need_energy) {
-							gain += values["energy"];
-						}
+						gain += energy_weight * values["energy"];
 					}
-					if (values.exists("wood") && need_wood) {
-						gain += values["wood"]; 			
+					if (values.exists("wood")) {
+						gain += wood_weight * values["wood"]; 			
 					}
 					if (values.exists("dislike")) {
-						gain += values["dislike"];
+						gain += dislike_weight *values["dislike"];
 					}
 
 					// If gain something and got a better score
@@ -534,34 +586,38 @@ class Main {
 
 	function update_entities() {
 		// Respawn resources
-		var bananas_respawn = Math.floor(bananas_respawn_rate / bananas_list.length);
-		for (i in 0...bananas_respawn) {
-			var random_bananas = bananas_list[Random.int(0, bananas_list.length - 1)];
-			var space = random_neighbor_space(random_bananas.x, random_bananas.y);
-			if (space != null) {
-				make_bananas(space.x, space.y);
-			}			
+		if (bananas_list.length != 0) {
+			var bananas_respawn = Math.floor(bananas_respawn_rate / bananas_list.length);
+			for (i in 0...bananas_respawn) {
+				var random_bananas = bananas_list[Random.int(0, bananas_list.length - 1)];
+				var space = random_neighbor_space(random_bananas.x, random_bananas.y);
+				if (space != null) {
+					make_bananas(space.x, space.y);
+				}			
+			}
 		}
-		var tree_respawn = Math.floor(tree_respawn_rate / tree_list.length);
-		for (i in 0...tree_respawn) {
-			var random_tree = tree_list[Random.int(0, tree_list.length - 1)];
-			var space = random_neighbor_space(random_tree.x, random_tree.y);
-			if (space != null) {
-				make_tree(space.x, space.y);
-			}			
+		if (tree_list.length != 0) {
+			var tree_respawn = Math.floor(tree_respawn_rate / tree_list.length);
+			for (i in 0...tree_respawn) {
+				var random_tree = tree_list[Random.int(0, tree_list.length - 1)];
+				var space = random_neighbor_space(random_tree.x, random_tree.y);
+				if (space != null) {
+					make_tree(space.x, space.y);
+				}			
+			}
 		}
 
 
 		// Update population caps
 		// if population is below 50% of cap for a long time, the cap is reduced by 25%
-		for (key in population_caps.keys()) {
+		for (key in mob_population_caps.keys()) {
 			var current_population = mob_lists[key].length;
-			var cap = population_caps[key];
+			var cap = mob_population_caps[key];
 
 			if (current_population / cap < 0.5) {
 				cap_reduce_timers[key]++;
 				if (cap_reduce_timers[key] > cap_reduce_timers_max) {
-					population_caps[key] = Math.floor(0.75 * population_caps[key]);
+					mob_population_caps[key] = Math.floor(0.75 * mob_population_caps[key]);
 					cap_reduce_timers[key] = 0;
 				} 
 			} else {
@@ -574,13 +630,17 @@ class Main {
 		
 		// Respawn mobs
 		// Update population caps
-		for (key in population_caps.keys()) {
-			var growth_chance = population_growth_chances[key];
+		for (key in mob_population_caps.keys()) {
+			if (mob_lists[key].length == 0) {
+				continue;
+			}
+
+			var growth_chance = mob_growth_chances[key];
 
 			if (Random.chance(growth_chance)) {
 				var mob_list = mob_lists[key];
 				var current_population = mob_list.length;
-				var cap = population_caps[key];
+				var cap = mob_population_caps[key];
 
 				var respawn_amount = Math.floor(cap / current_population);
 				for (i in 0...respawn_amount) {
@@ -640,7 +700,7 @@ class Main {
     	}
 
     	update_moving_entity(player);
-    	player.already_moved = false;
+    	player.moved_this_turn = false;
 
     	for (mob in Entity.get(Mob)) {
     		update_moving_entity(mob);
@@ -672,11 +732,7 @@ class Main {
     	}
 
     	for (resource in Entity.get(Resource)) {
-    		switch (resource.resource_type) {
-    			case ResourceType_Bananas: draw_entity(resource, Tiles.Bananas);
-    			case ResourceType_Tree: draw_entity(resource, Tiles.Tree);
-    			default:
-    		}
+    		draw_entity(resource, resource_tiles[resource.name]);
     	}
 
     	draw_entity(player, Tiles.Player);
@@ -726,7 +782,7 @@ class Main {
     		paused = !paused;
     	}
 
-    	if (!player.already_moved) {
+    	if (!player.moved_this_turn) {
     		if (Mouse.right_held()) {
     			var mouse_difference_x = Mouse.x - screen_x(player.x) 
     			- tilesize * scale / 2;
@@ -740,7 +796,7 @@ class Main {
     			}
 
     			if (!out_of_bounds(player.x + player.dx, player.y + player.dy)) { 
-    				player.already_moved = true;
+    				player.moved_this_turn = true;
     			} else {
     				player.dx = 0;
     				player.dy = 0;

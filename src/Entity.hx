@@ -69,7 +69,7 @@ class Player extends Entity {
 	var y: Int = 0;
 	var dx: Int = 0;
 	var dy: Int = 0;
-	var already_moved = false;
+	var moved_this_turn = false;
 }
 
 class Mob extends Entity {
