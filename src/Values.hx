@@ -8,14 +8,10 @@ using Lambda;
 @:publicFields
 class Values {
 
-	static inline var bananas_energy = 40;
-	static inline var tree_wood = 40;
+	static inline var bananas_energy = 4;
+	static inline var tree_wood = 4;
 
-	// NOTE: can optimize name to avoid hashing by strings
-    // make an array of names, use the index of the name in this array 
-    // instead of string itself
-
-	static var values: Map<String, Map<String, Map<String, Int>>> = [
+	static var to_attacker: Map<String, Map<String, Map<String, Int>>> = [
 		"gnome" => [
 			"bananas" => [
 				"energy" => bananas_energy,
@@ -26,14 +22,35 @@ class Values {
 			],
 
 			"dragon" => [
-				"dislike" => 5,
+				"happy" => 5,
+			],
+
+			"flower" => [
+				"happy" => 5,
 			],
 		],
 
 		"dragon" => [
 			"gnome" => [
 				"energy" => 100,
-				"dislike" => 100,
+				"happy" => 100,
+			],
+		],
+	];
+
+	static var to_goal: Map<String, Map<String, Map<String, Int>>> = [
+		"dragon" => [
+			"gnome" => [
+				"health" => -1,
+			],
+		],
+
+		"gnome" => [
+			"banana" => [
+				"health" => -1,
+			],
+			"tree" => [
+				"health" => -1,
 			],
 		],
 	];

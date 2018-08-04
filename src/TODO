@@ -1,19 +1,12 @@
-think about stuff for mobs to do other than eating
 
 should add monster mobs to kill ala dota creeps, gnomes can decide to go on an adventure to kill them, something that a big dragon that doesn't do much other than attack anyone who attacks it
+these mobs should stick to one place and have a leash
 
-implement mobs interacting with entities non-destructively, for example conversations that boost or decrease mutual disposition or looking at things etc
 
-need to change the way resources respawn
-they can't ever get completely consumed
-but they also shouldn't respawn non-stop
-there should be potential for drama like a faction outgrowing nearby resource stores and having to conquer new lands
+
 
 ------------------------------------------
 
-add a couple of null checks
-combine mob variable initialization, add error checks
-change goal value calculation to use weights instead of conditions
-make resource respawn use same lists as mobs, separate resources by string keys
 
+------------------------------------------
 

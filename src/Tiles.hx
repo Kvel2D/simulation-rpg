@@ -15,5 +15,6 @@ class Tiles {
     static inline var Bananas = tilenum(4, 0);
     static inline var Tree = tilenum(5, 0);
     static inline var Dragon = tilenum(7, 0);
+    static inline var Flower = tilenum(8, 0);
 
 }

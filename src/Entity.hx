@@ -8,12 +8,6 @@ enum EntityType {
 	EntityType_Resource;
 }
 
-enum ResourceType {
-	ResourceType_None;
-	ResourceType_Tree;
-	ResourceType_Bananas;
-}
-
 enum MobState {
 	MobState_None;
 	MobState_Idle;
@@ -72,6 +66,7 @@ class Player extends Entity {
 	var moved_this_turn = false;
 }
 
+// Does goals
 class Mob extends Entity {
 	var entity_type = EntityType_Mob;
 
@@ -86,9 +81,10 @@ class Mob extends Entity {
 
 	var state_timer = 0;
 	var goal: Dynamic = null;
+	var goal_duration = 0;
 
-	var hp = 10;
-	var hp_max = 10;
+	var health = 10;
+	var health_max = 10;
 	var energy = 50;
 	var energy_max = 100;
 	var energy_decrease_timer = 0;
@@ -101,15 +97,14 @@ class Mob extends Entity {
 	var personal_name = "";
 }
 
-
+// Doesn't do goals
 class Resource extends Entity {
 	var entity_type = EntityType_Resource;
 
 	var x: Int = 0;
 	var y: Int = 0;
-	var resource_type = ResourceType_Bananas;
-	var hp: Int = 10;
-	var hp_max: Int = 10;
+	var health: Int = 10;
+	var health_max: Int = 10;
 
 	var name = "";
 }

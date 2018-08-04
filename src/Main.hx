@@ -18,14 +18,7 @@ class Main {
 	static inline var view_width = 31;
 	static inline var view_height = 31;
 
-	static inline var bananas_respawn_rate = 300; // this is also the maximum amount of resources
-	static inline var tree_respawn_rate = 300;
-
 	var paused = false;
-
-	var bananas_list = new Array<Resource>();
-	var tree_list = new Array<Resource>();
-
 
 	var turn_timer = 0;
 	static inline var turn_timer_max  = 10;
@@ -64,17 +57,24 @@ class Main {
 	var resource_names = [
 	"bananas",
 	"tree",
+	"flower",
 	];
 	var resource_lists = new Map<String, Array<Resource>>();
-	var resource_population_caps: Map<String, Int> = [
-	"bananas" => 300,
-	"tree" => 300,
-	];
 	var resource_tiles: Map<String, Int> = [
 	"bananas" => Tiles.Bananas,
 	"tree" => Tiles.Tree,
+	"flower" => Tiles.Flower,
 	];
-
+	var resource_caps: Map<String, Int> = [
+	"bananas" => 300,
+	"tree" => 300,
+	"flower" => 10,
+	];
+	var resource_respawn_chances: Map<String, Int> = [
+	"bananas" => 50,
+	"tree" => 50,
+	"flower" => 30,
+	];
 
 	function new() {
 		Gfx.resize_screen(screen_width, screen_height);
@@ -114,7 +114,7 @@ class Main {
 		for (name in resource_names) {
 			resource_lists[name] = new Array<Resource>();
 
-			if (!resource_population_caps.exists(name)) {
+			if (!resource_caps.exists(name)) {
 				trace('Population cap undefined for \"${name}\"');
 				mob_population_caps[name] = 1000;
 			}
@@ -178,7 +178,7 @@ class Main {
 				y: 50 + Random.int(-20, 20)
 			};
 			if (free_map[position.x][position.y]) {
-				make_bananas(position.x, position.y);
+				make_resource(position.x, position.y, "bananas");
 			}
 		}
 		for (i in 0...10) {
@@ -187,7 +187,17 @@ class Main {
 				y: 50 + Random.int(-20, 20)
 			};
 			if (free_map[position.x][position.y]) {
-				make_tree(position.x, position.y);
+				make_resource(position.x, position.y, "tree");
+			}
+		}
+
+		for (i in 0...10) {
+			var position = {
+				x: 50 + Random.int(-20, 20), 
+				y: 50 + Random.int(-20, 20)
+			};
+			if (free_map[position.x][position.y]) {
+				make_resource(position.x, position.y, "flower");
 			}
 		}
 	}
@@ -201,6 +211,14 @@ class Main {
 		if (entity_count[x][y] == 0) {
 			free_map[x][y] = true;
 		}
+	}
+
+	function add_resource_to_lists(resource: Resource) {
+		resource_lists[resource.name].push(resource);
+	}
+
+	function remove_resource_from_lists(resource: Resource) {
+		resource_lists[resource.name].remove(resource);
 	}
 
 	function add_mob_to_lists(mob: Mob) {
@@ -274,26 +292,13 @@ class Main {
 		add_mob_to_lists(dragon);
 	}
 
-	function make_bananas(x, y) {
-		var bananas = new Resource();
-		bananas.x = x;
-		bananas.y = y;
-		bananas.resource_type = ResourceType_Bananas;
+	function make_resource(x, y, name) {
+		var resource = new Resource();
+		resource.x = x;
+		resource.y = y;
 		add_to_free_map(x, y);
-		bananas.name = "bananas";
-
-		bananas_list.push(bananas);
-	}
-
-	function make_tree(x, y) {
-		var tree = new Resource();
-		tree.x = x;
-		tree.y = y;
-		tree.resource_type = ResourceType_Tree;
-		add_to_free_map(x, y);
-		tree.name = "tree";
-
-		tree_list.push(tree);
+		resource.name = name;
+		add_resource_to_lists(resource);
 	}
 
 	// in terms of cells
@@ -437,7 +442,7 @@ class Main {
 			wood_weight = 1;
 		}
 
-		var dislike_weight = 1;
+		var happy_weight = 1;
 
 		// do goal if motivated
 		if (Random.chance(mob.motivation)) {
@@ -448,12 +453,12 @@ class Main {
 			var best_goal = null;
 
 			function process_for_value(entity) {
-				if (!Values.values[mob.name].exists(entity.name)) {
+				if (!Values.to_attacker[mob.name].exists(entity.name)) {
 					// No values for this type of goal
 					return;
 				}
 
-				// total value is value of resources/dislike gained
+				// total value is value of resources/happy gained
 				// minus the distance to goal
 				// if nothing is gained, goal is ignored
 				var distance = Std.int(Math.dst(mob.x, mob.y, entity.x, entity.y));
@@ -464,7 +469,7 @@ class Main {
 					return;
 				} else {
 
-					var values = Values.values[mob.name][entity.name];
+					var values = Values.to_attacker[mob.name][entity.name];
 
 					var gain = 0;
 					if (values.exists("energy")) {
@@ -473,8 +478,8 @@ class Main {
 					if (values.exists("wood")) {
 						gain += wood_weight * values["wood"]; 			
 					}
-					if (values.exists("dislike")) {
-						gain += dislike_weight *values["dislike"];
+					if (values.exists("happy")) {
+						gain += happy_weight *values["happy"];
 					}
 
 					// If gain something and got a better score
@@ -527,6 +532,7 @@ class Main {
 				// TODO: insert motivation check here
 				mob.goal = best_goal;
 				mob.state = MobState_Goal;
+				mob.goal_duration = Random.int(5, 15);
 			}
 		}
 	}
@@ -544,66 +550,77 @@ class Main {
 
 			move_entity_to(mob, mob.x + move.x, mob.y + move.y);
 		} else {
-			// Next to goal, gather it
-			// If not gathered yet, gather resource and delete
-			if (mob.goal.hp > 0) {
+			// Next to goal, interact with it
+
+			mob.goal_duration--;
+			if (mob.goal_duration == 0 || mob.goal.health <= 0) {
+				mob.goal = null;
+				mob.state = MobState_Idle;
+			} else {
+				// Wood speeds up interaction
+				var wood_multiplier = 1;
 				if (mob.wood > 0) {
-					// wood makes you gather faster
-					mob.goal.hp -= 2;
+					wood_multiplier = 2;
 					mob.wood--;
-				} else {
-					mob.goal.hp -= 1;
 				}
 				mob.energy -= 1;
 
+				// Apply value exchanges
+				// Give values to attacker
+				if (Values.to_attacker[mob.name].exists(mob.goal.name)) {
+					var values = Values.to_attacker[mob.name][mob.goal.name];
+					if (values.exists("wood")) {
+						mob.wood += values["wood"] * wood_multiplier;
+					}
+					if (values.exists("energy")) {
+						mob.energy += values["energy"] * wood_multiplier;
+					}
+				}
+				// Give values to goal(most of the time take)
+				if (Values.to_goal[mob.name].exists(mob.goal.name)) {
+					var values = Values.to_goal[mob.name][mob.goal.name];
+					if (values.exists("wood")) {
+						mob.goal.wood += values["wood"] * wood_multiplier;
+					}
+					if (values.exists("energy")) {
+						mob.goal.energy += values["energy"] * wood_multiplier;
+					}
 
-				if (mob.goal.hp <= 0) {
-					mob.goal.delete();
-					if (mob.goal.entity_type == EntityType_Mob) {
-						remove_mob_from_lists(mob.goal);
-					} else if (mob.goal.entity_type == EntityType_Resource) {
-						switch (mob.goal.resource_type) {
-							case ResourceType_Tree: {
-								mob.wood += 10;
-								tree_list.remove(mob.goal);
+					if (values.exists("health")) {
+						mob.goal.health += values["health"] * wood_multiplier;
+
+						// When health is 0, goal entity is deleted
+						if (mob.goal.health <= 0) {
+							mob.goal.delete();
+
+							if (mob.goal.entity_type == EntityType_Mob) {
+								remove_mob_from_lists(mob.goal);
+							} else if (mob.goal.entity_type == EntityType_Resource) {
+								remove_resource_from_lists(mob.goal);
 							}
-							case ResourceType_Bananas: {
-								mob.energy += 40;
-								bananas_list.remove(mob.goal);
-							}
-							default:
 						}
 					}
 				}
 			}
-
-			if (mob.goal.hp <= 0) {
-				mob.goal = null;
-				mob.state = MobState_Idle;
-			}		
 		}
 	}
 
 	function update_entities() {
 		// Respawn resources
-		if (bananas_list.length != 0) {
-			var bananas_respawn = Math.floor(bananas_respawn_rate / bananas_list.length);
-			for (i in 0...bananas_respawn) {
-				var random_bananas = bananas_list[Random.int(0, bananas_list.length - 1)];
-				var space = random_neighbor_space(random_bananas.x, random_bananas.y);
-				if (space != null) {
-					make_bananas(space.x, space.y);
-				}			
-			}
-		}
-		if (tree_list.length != 0) {
-			var tree_respawn = Math.floor(tree_respawn_rate / tree_list.length);
-			for (i in 0...tree_respawn) {
-				var random_tree = tree_list[Random.int(0, tree_list.length - 1)];
-				var space = random_neighbor_space(random_tree.x, random_tree.y);
-				if (space != null) {
-					make_tree(space.x, space.y);
-				}			
+		for (name in resource_names) {
+			var list = resource_lists[name];
+			var cap = resource_caps[name];
+			var chance = resource_respawn_chances[name];
+			var respawn = Math.floor(cap / list.length);
+
+			for (i in 0...respawn) {
+				if (Random.chance(chance)) {
+					var random_resource = list[Random.int(0, list.length - 1)];
+					var space = random_neighbor_space(random_resource.x, random_resource.y);
+					if (space != null) {
+						make_resource(space.x, space.y, name);
+					}			
+				}
 			}
 		}
 
@@ -656,7 +673,8 @@ class Main {
 				}
 			}
 		}
-		// Respawn
+
+		// Update mobs
 		for (mob in Entity.get(Mob)) {
 
     		// Mobs constantly consume energy
@@ -668,12 +686,12 @@ class Main {
 
     			if (mob.energy < 0) {
     				mob.energy = 0;
-    				// decrease hp if no energy
-    				mob.hp -= 1;
+    				// decrease health if no energy
+    				mob.health -= 1;
     			}
     		}
 
-    		if (mob.hp <= 0) {
+    		if (mob.health <= 0) {
     			mob.delete();
     			remove_mob_from_lists(mob);
     		}
@@ -709,7 +727,7 @@ class Main {
 
     function render() {
 
-    	Gfx.scale(4, 4);
+    	Gfx.scale(scale, scale);
 
     	var start_x = player.x - Math.floor(view_width / 2);
     	var end_x = player.x + Math.ceil(view_width / 2);
@@ -718,14 +736,6 @@ class Main {
 
     	Gfx.fill_box(0, 0, view_width * tilesize * scale, 
     		view_height * tilesize * scale, Col.LIGHTGREEN);
-    	// for (x in start_x...end_x) {
-    	// 	for (y in start_y...end_y) {
-    	// 		if (!out_of_bounds(x, y)) {
-    	// 			Gfx.draw_tile(screen_x(x), screen_y(y), 
-    	// 				tiles[x][y]);
-    	// 		}
-    	// 	}
-    	// }
 
     	for (mob in Entity.get(Mob)) {
     		draw_entity(mob, mob_tiles[mob.name]);
@@ -737,6 +747,24 @@ class Main {
 
     	draw_entity(player, Tiles.Player);
 
+
+    	// World border
+    	if (player.x < view_width / 2) {
+    		var border_width = ((view_width / 2) - 1 - player.x) * tilesize * scale;
+    		Gfx.fill_box(0, 0, border_width, screen_height, Col.BLACK);
+    	} else if (player.x > map_width - view_width / 2) {
+    		var border_width = ((view_width / 2) - (map_width - 1 - player.x)) * tilesize * scale;
+    		Gfx.fill_box(view_width * tilesize * scale - border_width, 0,
+    			border_width, screen_height, Col.BLACK);
+    	}
+    	if (player.y < view_height / 2) {
+    		var border_height = ((view_height / 2) - 1 - player.y) * tilesize * scale;
+    		Gfx.fill_box(0, 0, screen_width, border_height, Col.BLACK);
+    	} else if (player.y > map_height - view_height / 2) {
+    		var border_height = ((view_height / 2) - (map_height - 1 - player.y)) * tilesize * scale;
+    		Gfx.fill_box(0, view_height * tilesize * scale - border_height,
+    			screen_width, border_height, Col.BLACK);
+    	}
 
 
     	// Display tracked entity info
@@ -755,18 +783,19 @@ class Main {
     			case EntityType_Mob: {
     				display_line('home x=${tracked_entity.home_x} y=${tracked_entity.home_y}');
     				display_line('state=${tracked_entity.state}');
-    				display_line('hp=${tracked_entity.hp}/${tracked_entity.hp_max}');
+    				display_line('health=${tracked_entity.health}/${tracked_entity.health_max}');
     				display_line('energy=${tracked_entity.energy}/${tracked_entity.energy_max}');
     				display_line('population=${mob_lists[tracked_entity.name].length}');
     				display_line('name=${tracked_entity.name}');
     				display_line('personal name=${tracked_entity.personal_name}');
     				if (tracked_entity.goal != null) {
     					display_line('goal x=${tracked_entity.goal.x} goal y=${tracked_entity.goal.y}');
+    					display_line('goal name=${tracked_entity.goal.name}');
     				}
     			}
     			case EntityType_Resource: {
-    				display_line('hp=${tracked_entity.hp}/${tracked_entity.hp_max}');
-    				display_line('resource type=${tracked_entity.resource_type}');
+    				display_line('health=${tracked_entity.health}/${tracked_entity.health_max}');
+    				display_line('name=${tracked_entity.name}');
     			}
     			default:
     		}
@@ -793,6 +822,28 @@ class Main {
     			}
     			if (Math.abs(mouse_difference_y) > tilesize * scale/ 2) {
     				player.dy = Math.sign(mouse_difference_y);
+    			}
+
+    			if (!out_of_bounds(player.x + player.dx, player.y + player.dy)) { 
+    				player.moved_this_turn = true;
+    			} else {
+    				player.dx = 0;
+    				player.dy = 0;
+    			}
+    		} else {
+    			var left = Input.pressed(Key.LEFT);
+    			var right = Input.pressed(Key.RIGHT);
+    			var up = Input.pressed(Key.UP);
+    			var down = Input.pressed(Key.DOWN);
+    			
+    			if (left && !right) {
+    				player.dx = -1;
+    			} else if (right && !left) {
+    				player.dx = 1;
+    			} else if (up && !down) {
+    				player.dy = -1;
+    			} else if (down && !up) {
+    				player.dy = 1;
     			}
 
     			if (!out_of_bounds(player.x + player.dx, player.y + player.dy)) { 
