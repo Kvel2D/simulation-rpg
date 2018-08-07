@@ -95,6 +95,8 @@ class Mob extends Entity {
 
 	var name = "";
 	var personal_name = "";
+
+	var history = new Array<String>();
 }
 
 // Doesn't do goals

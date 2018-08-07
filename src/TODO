@@ -1,16 +1,21 @@
 
+when a mob dies, show a notification and if player clicks on mob's name, show mob's history
+keep an archive of all mobs that existed
+maybe make this a separate menu, ingame ui is already getting too full
+
+
 more nutritious food
+
+more lucrative entertainment, but how to respawn it? ideally there would be a limited amount of it on the map
 
 mob to mob interaction, gives happy
 
-interaction names to display in mob info
-
-interaction history
-
 think about values, how energy values interact, find a baseline from which to base other values on
 
-------------------------------------------
 
+------------------------------------------
+add interaction history
+add history scrolling
 
 ------------------------------------------
 

@@ -31,7 +31,7 @@ class Main {
 	var player: Player;
 
 	var tracked_entity: Dynamic = null;
-
+	var history_scroll = 0;
 
 	var mob_names = [
 	"gnome",
@@ -529,10 +529,22 @@ class Main {
 			}
 
 			if (best_goal != null) {
-				// TODO: insert motivation check here
 				mob.goal = best_goal;
 				mob.state = MobState_Goal;
 				mob.goal_duration = Random.int(5, 15);
+
+				// record goal/interaction in mob's history
+				var history_entry = '';
+				var interaction_name = 'no_interaction_name';
+				if (InteractionData.names.exists(mob.name) 
+					&& InteractionData.names[mob.name].exists(mob.goal.name)) 
+				{
+					interaction_name = InteractionData.names[mob.name][mob.goal.name];
+				}
+				history_entry += '${interaction_name}';
+				history_entry += '->${mob.goal.name}';
+				history_entry += ' for ${mob.goal_duration} turns';
+				mob.history.unshift(history_entry);
 			}
 		}
 	}
@@ -737,13 +749,15 @@ class Main {
     	Gfx.fill_box(0, 0, view_width * tilesize * scale, 
     		view_height * tilesize * scale, Col.LIGHTGREEN);
 
+    	for (resource in Entity.get(Resource)) {
+    		draw_entity(resource, resource_tiles[resource.name]);
+    	}
+    	
     	for (mob in Entity.get(Mob)) {
     		draw_entity(mob, mob_tiles[mob.name]);
     	}
 
-    	for (resource in Entity.get(Resource)) {
-    		draw_entity(resource, resource_tiles[resource.name]);
-    	}
+    	
 
     	draw_entity(player, Tiles.Player);
 
@@ -775,8 +789,12 @@ class Main {
     			text_y += 20;
     		}
 
+    		display_line('Mob Info');
     		display_line('${tracked_entity.entity_type}');
     		display_line('x=${tracked_entity.x} y=${tracked_entity.y}');
+    		
+    		text_y = 100;
+    		display_line('Goal Info:');
     		switch (tracked_entity.entity_type) {
     			case EntityType_Player: {
     			}
@@ -792,6 +810,13 @@ class Main {
     					display_line('goal x=${tracked_entity.goal.x} goal y=${tracked_entity.goal.y}');
     					display_line('goal name=${tracked_entity.goal.name}');
     				}
+
+    				text_y = 350;
+    				display_line('Mob History:');
+    				var tracked_history: Array<String> = tracked_entity.history;
+    				for (i in 0...Std.int(Math.min(10, tracked_history.length))) {
+    					display_line('${history_scroll + i})${tracked_history[history_scroll + i]}');
+    				}
     			}
     			case EntityType_Resource: {
     				display_line('health=${tracked_entity.health}/${tracked_entity.health_max}');
@@ -802,7 +827,9 @@ class Main {
     	}
 
 
-    	Text.display(view_width * tilesize * scale + 10, 700, 'x=${player.x} y=${player.y}');
+    	Text.display(view_width * tilesize * scale + 10, 800, 'x=${player.x} y=${player.y}');
+    	
+    	Text.display(view_width * tilesize * scale + 10, 850, 'x=${Mouse.x} y=${Mouse.y}');
     }
 
     function update() {
@@ -862,6 +889,8 @@ class Main {
     					Mouse.x, Mouse.y) < tilesize * tilesize * scale * scale) 
     			{
     				tracked_entity = entity;
+    				// Reset history scroll position
+    				history_scroll = 0;
     				break;
     			}
     		}
@@ -877,5 +906,19 @@ class Main {
     	}
 
     	render();
+
+    	// History scroll buttons
+    	if (tracked_entity != null) {
+    		GUI.text_button(1270, 330, "UP", function() { history_scroll--; });
+    		GUI.text_button(1270, 360, "DOWN", function() { history_scroll++; });
+    		if (history_scroll < 0) {
+    			history_scroll = 0;
+    		} else if (history_scroll > tracked_entity.history.length - 10) {
+    			history_scroll = Std.int(tracked_entity.history.length - 10);
+    			if (history_scroll < 0) {
+    				history_scroll = 0;
+    			}
+    		}
+    	}
     }
 }

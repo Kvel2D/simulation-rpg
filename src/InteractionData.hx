@@ -54,4 +54,18 @@ class InteractionData {
 			],
 		],
 	];
+
+	static var names: Map<String, Map<String, String>> = [
+		"gnome" => [
+			"gnome" 	=> "talk",
+			"bananas" 	=> "eat",
+			"dragon" 	=> "attack",
+			"flower" 	=> "look",
+			"tree" 		=> "collect",
+		],
+
+		"dragon" => [
+			"gnome" => "attack",
+		],
+	];
 }
