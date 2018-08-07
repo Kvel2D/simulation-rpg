@@ -453,7 +453,7 @@ class Main {
 			var best_goal = null;
 
 			function process_for_value(entity) {
-				if (!Values.to_attacker[mob.name].exists(entity.name)) {
+				if (!InteractionData.to_attacker[mob.name].exists(entity.name)) {
 					// No values for this type of goal
 					return;
 				}
@@ -469,7 +469,7 @@ class Main {
 					return;
 				} else {
 
-					var values = Values.to_attacker[mob.name][entity.name];
+					var values = InteractionData.to_attacker[mob.name][entity.name];
 
 					var gain = 0;
 					if (values.exists("energy")) {
@@ -567,8 +567,8 @@ class Main {
 
 				// Apply value exchanges
 				// Give values to attacker
-				if (Values.to_attacker[mob.name].exists(mob.goal.name)) {
-					var values = Values.to_attacker[mob.name][mob.goal.name];
+				if (InteractionData.to_attacker[mob.name].exists(mob.goal.name)) {
+					var values = InteractionData.to_attacker[mob.name][mob.goal.name];
 					if (values.exists("wood")) {
 						mob.wood += values["wood"] * wood_multiplier;
 					}
@@ -577,8 +577,8 @@ class Main {
 					}
 				}
 				// Give values to goal(most of the time take)
-				if (Values.to_goal[mob.name].exists(mob.goal.name)) {
-					var values = Values.to_goal[mob.name][mob.goal.name];
+				if (InteractionData.to_goal[mob.name].exists(mob.goal.name)) {
+					var values = InteractionData.to_goal[mob.name][mob.goal.name];
 					if (values.exists("wood")) {
 						mob.goal.wood += values["wood"] * wood_multiplier;
 					}
